@@ -1,0 +1,27 @@
+# --- Gradle ---
+.gradle/
+build/
+**/build/
+
+# --- Kotlin ---
+.kotlin/
+
+# --- IDE (IntelliJ IDEA / Android Studio) ---
+.idea/
+*.iml
+*.iws
+out/
+
+# --- Local Configuration (SDK paths, etc.) ---
+# local.properties には Android SDK のパスなどが含まれるため、共有しません
+local.properties
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
+# --- Apple / Swift PM ---
+# iOS 開発に関連する一時ファイルやビルド生成物
+.build/
+DerivedData/
+StartYourBridgeHere.swift
