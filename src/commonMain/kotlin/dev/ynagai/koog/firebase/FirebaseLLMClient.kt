@@ -4,16 +4,21 @@ import ai.koog.agents.core.tools.ToolDescriptor
 import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.executor.clients.LLMClient
+import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import dev.ynagai.firebase.ai.FirebaseAI
 import dev.ynagai.firebase.ai.GenerativeModel
+import dev.ynagai.firebase.ai.TextPart
 import dev.ynagai.koog.firebase.mapper.extractSystemInstruction
 import dev.ynagai.koog.firebase.mapper.toFirebase
 import dev.ynagai.koog.firebase.mapper.toKoog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.time.Clock
 
 /**
@@ -27,6 +32,10 @@ class FirebaseLLMClient(
     private val firebaseAI: FirebaseAI,
     private val clock: Clock = Clock.System,
 ) : LLMClient {
+    companion object {
+        const val CLIENT_NAME = "FirebaseLLMClient"
+    }
+
     override fun llmProvider(): LLMProvider = FirebaseLLMProvider
 
     override suspend fun execute(
@@ -39,34 +48,83 @@ class FirebaseLLMClient(
                 "Firebase AI SDK does not support function calling / tools yet"
             )
         }
-        val generativeModel = createGenerativeModel(model, prompt.messages)
-        val contents = prompt.messages.toFirebase()
-        val response = generativeModel.generateContent(*contents.toTypedArray())
-        return response.toKoog(clock).first()
+        return try {
+            val generativeModel = createGenerativeModel(model, prompt.messages)
+            val contents = prompt.messages.toFirebase()
+            val response = generativeModel.generateContent(*contents.toTypedArray())
+            response.toKoog(clock).firstOrNull() ?: emptyList()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw LLMClientException(
+                clientName = CLIENT_NAME,
+                message = "Firebase AI request failed: ${e.message}",
+                cause = e
+            )
+        }
     }
 
     override fun executeStreaming(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>
-    ): Flow<StreamFrame> {
+    ): Flow<StreamFrame> = flow {
         if (tools.isNotEmpty()) {
             throw UnsupportedOperationException(
                 "Firebase AI SDK does not support function calling / tools yet"
             )
         }
-        TODO()
+
+        try {
+            val generativeModel = createGenerativeModel(model, prompt.messages)
+            val contents = prompt.messages.toFirebase()
+
+            var lastMetaInfo: ResponseMetaInfo? = null
+            var lastFinishReason: String? = null
+
+            generativeModel.generateContentStream(*contents.toTypedArray())
+                .collect { response ->
+                    response.usageMetadata?.let {
+                        lastMetaInfo = ResponseMetaInfo.create(
+                            clock = clock,
+                            totalTokensCount = it.totalTokenCount,
+                            inputTokensCount = it.promptTokenCount,
+                            outputTokensCount = it.candidatesTokenCount,
+                        )
+                    }
+                    response.candidates.firstOrNull()?.let { candidate ->
+                        candidate.finishReason?.let { lastFinishReason = it.name }
+                        candidate.content.parts.forEach { part ->
+                            when (part) {
+                                is TextPart -> emit(StreamFrame.Append(part.text))
+                                else -> Unit
+                            }
+                        }
+                    }
+                }
+
+            emit(StreamFrame.End(lastFinishReason, lastMetaInfo ?: ResponseMetaInfo.create(clock)))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw LLMClientException(
+                clientName = CLIENT_NAME,
+                message = "Firebase AI streaming request failed: ${e.message}",
+                cause = e
+            )
+        }
     }
 
     override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult {
         throw UnsupportedOperationException("Moderation is not supported by Firebase AI.")
     }
 
-    override suspend fun models(): List<String> {
-        return listOf(
-            FirebaseModels.Gemini2_5Flash.id,
-        )
-    }
+    override suspend fun models(): List<String> = listOf(
+        FirebaseModels.Gemini2_5Flash.id,
+        FirebaseModels.Gemini2_5Pro.id,
+        FirebaseModels.Gemini2_0Flash.id,
+        FirebaseModels.Gemini2_0FlashLite.id,
+    )
 
     override fun close() {
         // No resources to close for Firebase AI client
