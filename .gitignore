@@ -13,7 +13,6 @@ build/
 out/
 
 # --- Local Configuration (SDK paths, etc.) ---
-# local.properties には Android SDK のパスなどが含まれるため、共有しません
 local.properties
 
 # --- OS Specific ---
@@ -21,7 +20,6 @@ local.properties
 Thumbs.db
 
 # --- Apple / Swift PM ---
-# iOS 開発に関連する一時ファイルやビルド生成物
 .build/
 DerivedData/
 StartYourBridgeHere.swift

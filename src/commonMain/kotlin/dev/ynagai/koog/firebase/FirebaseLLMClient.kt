@@ -32,10 +32,6 @@ class FirebaseLLMClient(
     private val firebaseAI: FirebaseAI,
     private val clock: Clock = Clock.System,
 ) : LLMClient {
-    companion object {
-        const val CLIENT_NAME = "FirebaseLLMClient"
-    }
-
     override fun llmProvider(): LLMProvider = FirebaseLLMProvider
 
     override suspend fun execute(
@@ -57,7 +53,7 @@ class FirebaseLLMClient(
             throw e
         } catch (e: Exception) {
             throw LLMClientException(
-                clientName = CLIENT_NAME,
+                clientName = clientName,
                 message = "Firebase AI request failed: ${e.message}",
                 cause = e
             )
@@ -108,7 +104,7 @@ class FirebaseLLMClient(
             throw e
         } catch (e: Exception) {
             throw LLMClientException(
-                clientName = CLIENT_NAME,
+                clientName = clientName,
                 message = "Firebase AI streaming request failed: ${e.message}",
                 cause = e
             )
