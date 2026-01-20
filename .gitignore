@@ -1,0 +1,25 @@
+# --- Gradle ---
+.gradle/
+build/
+**/build/
+
+# --- Kotlin ---
+.kotlin/
+
+# --- IDE (IntelliJ IDEA / Android Studio) ---
+.idea/
+*.iml
+*.iws
+out/
+
+# --- Local Configuration (SDK paths, etc.) ---
+local.properties
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
+# --- Apple / Swift PM ---
+.build/
+DerivedData/
+StartYourBridgeHere.swift
