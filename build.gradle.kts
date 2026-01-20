@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.publish)
 }
 
-group = "dev.ynagai.koog.firebase"
+group = "dev.ynagai.koog"
 
 kotlin {
     androidLibrary {
