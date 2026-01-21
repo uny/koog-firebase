@@ -22,7 +22,7 @@ Add to your `libs.versions.toml`:
 
 ```toml
 [versions]
-koog-firebase = "0.1.0"
+koog-firebase = "0.1.1"
 
 [libraries]
 koog-firebase = { module = "dev.ynagai.koog.firebase:koog-firebase", version.ref = "koog-firebase" }
@@ -40,7 +40,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog.firebase:koog-firebase:0.1.0")
+    implementation("dev.ynagai.koog.firebase:koog-firebase:0.1.1")
 }
 ```
 
