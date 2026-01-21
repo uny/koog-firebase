@@ -19,7 +19,7 @@ import dev.ynagai.koog.firebase.mapper.toKoog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlin.time.Clock
+import kotlinx.datetime.Clock
 
 /**
  * LLMClient implementation for Firebase AI SDK.
