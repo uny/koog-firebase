@@ -56,4 +56,21 @@ object FirebaseModels : LLModelDefinitions {
         contextLength = 1_048_576,
         maxOutputTokens = 8_192,
     )
+
+    private val supportedModels: List<LLModel> = listOf(
+        Gemini2_5Flash,
+        Gemini2_5Pro,
+        Gemini2_0Flash,
+        Gemini2_0FlashLite,
+    )
+
+    private val customModels: MutableList<LLModel> = mutableListOf()
+
+    override val models: List<LLModel>
+        get() = supportedModels + customModels
+
+    override fun addCustomModel(model: LLModel) {
+        require(model.provider == FirebaseLLMProvider) { "Model provider must be Firebase" }
+        customModels.add(model)
+    }
 }
