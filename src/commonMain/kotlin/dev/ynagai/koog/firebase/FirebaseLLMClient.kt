@@ -19,7 +19,7 @@ import dev.ynagai.koog.firebase.mapper.toKoog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 /**
  * LLMClient implementation for Firebase AI SDK.
@@ -31,7 +31,7 @@ import kotlinx.datetime.Clock
 class FirebaseLLMClient(
     private val firebaseAI: FirebaseAI,
     private val clock: Clock = Clock.System,
-) : LLMClient {
+) : LLMClient() {
     override fun llmProvider(): LLMProvider = FirebaseLLMProvider
 
     override suspend fun execute(
@@ -92,7 +92,7 @@ class FirebaseLLMClient(
                         candidate.finishReason?.let { lastFinishReason = it.name }
                         candidate.content.parts.forEach { part ->
                             when (part) {
-                                is TextPart -> emit(StreamFrame.Append(part.text))
+                                is TextPart -> emit(StreamFrame.TextDelta(part.text))
                                 else -> Unit
                             }
                         }
@@ -115,12 +115,7 @@ class FirebaseLLMClient(
         throw UnsupportedOperationException("Moderation is not supported by Firebase AI.")
     }
 
-    override suspend fun models(): List<String> = listOf(
-        FirebaseModels.Gemini2_5Flash.id,
-        FirebaseModels.Gemini2_5Pro.id,
-        FirebaseModels.Gemini2_0Flash.id,
-        FirebaseModels.Gemini2_0FlashLite.id,
-    )
+    override suspend fun models(): List<LLModel> = FirebaseModels.models
 
     override fun close() {
         // No resources to close for Firebase AI client
