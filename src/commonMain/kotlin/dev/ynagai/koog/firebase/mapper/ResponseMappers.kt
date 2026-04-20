@@ -4,7 +4,7 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.ResponseMetaInfo
 import dev.ynagai.firebase.ai.GenerateContentResponse
 import dev.ynagai.firebase.ai.TextPart
-import kotlin.time.Clock
+import kotlinx.datetime.Clock
 
 internal fun GenerateContentResponse.toKoog(clock: Clock): List<List<Message.Response>> {
     val inputTokensCount = usageMetadata?.promptTokenCount
