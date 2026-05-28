@@ -22,7 +22,7 @@ Add to your `libs.versions.toml`:
 
 ```toml
 [versions]
-koog-firebase = "0.1.1"
+koog-firebase = "0.4.0"
 
 [libraries]
 koog-firebase = { module = "dev.ynagai.koog.firebase:koog-firebase", version.ref = "koog-firebase" }
@@ -40,7 +40,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog.firebase:koog-firebase:0.1.1")
+    implementation("dev.ynagai.koog.firebase:koog-firebase:0.4.0")
 }
 ```
 
@@ -80,10 +80,12 @@ val executor = simpleFirebaseExecutor(
 
 | Model | Description |
 |-------|-------------|
-| `FirebaseModels.Gemini2_5Flash` | Fast and efficient with speculation support |
+| `FirebaseModels.Gemini3_5Flash` | Frontier-class Flash model |
+| `FirebaseModels.Gemini3_1Pro` | Advanced reasoning (preview) |
+| `FirebaseModels.Gemini3_1FlashLite` | Ultra-fast, budget-friendly |
 | `FirebaseModels.Gemini2_5Pro` | High-capability with speculation support |
-| `FirebaseModels.Gemini2_0Flash` | Fast with image vision support |
-| `FirebaseModels.Gemini2_0FlashLite` | Lightweight and efficient |
+| `FirebaseModels.Gemini2_5Flash` | Fast and efficient with speculation support |
+| `FirebaseModels.Gemini2_5FlashLite` | Budget-friendly Flash variant |
 
 ## Requirements
 
