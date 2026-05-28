@@ -1,12 +1,13 @@
 package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.ResponseMetaInfo
+import ai.koog.utils.time.KoogClock
 import dev.ynagai.firebase.ai.GenerateContentResponse
 import dev.ynagai.firebase.ai.TextPart
-import kotlin.time.Clock
 
-internal fun GenerateContentResponse.toKoog(clock: Clock): List<List<Message.Response>> {
+internal fun GenerateContentResponse.toKoog(clock: KoogClock): List<Message.Assistant> {
     val inputTokensCount = usageMetadata?.promptTokenCount
     val outputTokensCount = usageMetadata?.candidatesTokenCount
     val totalTokensCount = usageMetadata?.totalTokenCount
@@ -14,26 +15,19 @@ internal fun GenerateContentResponse.toKoog(clock: Clock): List<List<Message.Res
         clock,
         totalTokensCount = totalTokensCount,
         inputTokensCount = inputTokensCount,
-        outputTokensCount = outputTokensCount
+        outputTokensCount = outputTokensCount,
     )
     return candidates.map { candidate ->
-        val responses = mutableListOf<Message.Response>()
-        candidate.content.parts.forEach { part ->
+        val textParts: List<MessagePart.Text> = candidate.content.parts.mapNotNull { part ->
             when (part) {
-                is TextPart -> {
-                    responses.add(
-                        Message.Assistant(
-                            content = part.text,
-                            metaInfo = metaInfo
-                        )
-                    )
-                }
-                else -> Unit // InlineDataPart等は現時点でスキップ
+                is TextPart -> MessagePart.Text(part.text)
+                else -> null
             }
         }
-        if (responses.isEmpty()) {
-            responses.add(Message.Assistant(content = "", metaInfo = metaInfo))
-        }
-        responses
+        Message.Assistant(
+            parts = textParts.ifEmpty { listOf(MessagePart.Text("")) },
+            metaInfo = metaInfo,
+            finishReason = candidate.finishReason?.name,
+        )
     }
 }
