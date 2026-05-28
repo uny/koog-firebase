@@ -1,8 +1,8 @@
 package dev.ynagai.koog.firebase
 
 import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.ModerationResult
-import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.executor.clients.LLMClient
 import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.llm.LLMProvider
@@ -10,6 +10,7 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
+import ai.koog.utils.time.KoogClock
 import dev.ynagai.firebase.ai.FirebaseAI
 import dev.ynagai.firebase.ai.GenerativeModel
 import dev.ynagai.firebase.ai.TextPart
@@ -19,18 +20,15 @@ import dev.ynagai.koog.firebase.mapper.toKoog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlin.time.Clock
 
 /**
  * LLMClient implementation for Firebase AI SDK.
- *
- * This client bridges Koog's LLMClient interface with Firebase AI's GenerativeModel API.
  *
  * @param firebaseAI The FirebaseAI instance to use for creating generative models
  */
 class FirebaseLLMClient(
     private val firebaseAI: FirebaseAI,
-    private val clock: Clock = Clock.System,
+    private val clock: KoogClock = KoogClock.System,
 ) : LLMClient() {
     override fun llmProvider(): LLMProvider = FirebaseLLMProvider
 
@@ -38,7 +36,7 @@ class FirebaseLLMClient(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>
-    ): List<Message.Response> {
+    ): Message.Assistant {
         if (tools.isNotEmpty()) {
             throw UnsupportedOperationException(
                 "Firebase AI SDK does not support function calling / tools yet"
@@ -48,8 +46,17 @@ class FirebaseLLMClient(
             val generativeModel = createGenerativeModel(model, prompt.messages)
             val contents = prompt.messages.toFirebase()
             val response = generativeModel.generateContent(*contents.toTypedArray())
-            response.toKoog(clock).firstOrNull() ?: emptyList()
+            response.toKoog(clock).firstOrNull() ?: run {
+                val blockReason = response.promptFeedback?.blockReason?.name
+                throw LLMClientException(
+                    clientName = clientName,
+                    message = "Firebase AI returned no content" +
+                        (blockReason?.let { " (blocked: $it)" } ?: ""),
+                )
+            }
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: LLMClientException) {
             throw e
         } catch (e: Exception) {
             throw LLMClientException(
@@ -121,13 +128,6 @@ class FirebaseLLMClient(
         // No resources to close for Firebase AI client
     }
 
-    /**
-     * Creates a GenerativeModel with the appropriate configuration.
-     *
-     * @param model The Koog LLModel to use
-     * @param messages The messages from the prompt (used to extract system instruction)
-     * @return Configured GenerativeModel instance
-     */
     private fun createGenerativeModel(model: LLModel, messages: List<Message>): GenerativeModel {
         val systemInstruction = messages.extractSystemInstruction()
         return firebaseAI.generativeModel(

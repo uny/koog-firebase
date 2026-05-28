@@ -7,12 +7,12 @@ import dev.ynagai.firebase.ai.TextPart
 internal fun Message.toFirebase(): Content? = when (this) {
     is Message.User -> Content(
         role = "user",
-        parts = listOf(TextPart(content))
+        parts = listOf(TextPart(textContent()))
     )
 
     is Message.Assistant -> Content(
         role = "model",
-        parts = listOf(TextPart(content))
+        parts = listOf(TextPart(textContent()))
     )
 
     else -> null
@@ -23,7 +23,7 @@ internal fun List<Message>.toFirebase(): List<Content> = mapNotNull(Message::toF
 internal fun List<Message>.extractSystemInstruction(): Content? {
     val systemMessages = filterIsInstance<Message.System>()
     if (systemMessages.isEmpty()) return null
-    val combinedSystemPrompt = systemMessages.joinToString("\n") { it.content }
+    val combinedSystemPrompt = systemMessages.joinToString("\n") { it.textContent() }
     return Content(
         parts = listOf(TextPart(combinedSystemPrompt)),
     )

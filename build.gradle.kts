@@ -10,7 +10,7 @@ plugins {
 group = "dev.ynagai.koog"
 
 kotlin {
-    androidLibrary {
+    android {
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
         compilerOptions {
@@ -27,8 +27,10 @@ kotlin {
             implementation(libs.firebase.app)
             implementation(libs.koog.agents)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }
