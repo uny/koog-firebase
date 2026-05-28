@@ -46,8 +46,17 @@ class FirebaseLLMClient(
             val generativeModel = createGenerativeModel(model, prompt.messages)
             val contents = prompt.messages.toFirebase()
             val response = generativeModel.generateContent(*contents.toTypedArray())
-            response.toKoog(clock).first()
+            response.toKoog(clock).firstOrNull() ?: run {
+                val blockReason = response.promptFeedback?.blockReason?.name
+                throw LLMClientException(
+                    clientName = clientName,
+                    message = "Firebase AI returned no content" +
+                        (blockReason?.let { " (blocked: $it)" } ?: ""),
+                )
+            }
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: LLMClientException) {
             throw e
         } catch (e: Exception) {
             throw LLMClientException(
