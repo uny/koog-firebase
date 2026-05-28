@@ -6,6 +6,8 @@ import ai.koog.prompt.llm.LLModel
 
 /**
  * Pre-configured LLModel instances for Firebase AI models.
+ *
+ * Model list is aligned with https://firebase.google.com/docs/ai-logic/models.
  */
 object FirebaseModels : LLModelDefinitions {
     private val standardCapabilities: List<LLMCapability> = listOf(
@@ -14,12 +16,34 @@ object FirebaseModels : LLModelDefinitions {
     )
 
     /**
-     * Gemini 2.5 Flash - Fast and efficient model with speculation support.
+     * Gemini 3.5 Flash - Frontier-class Flash model.
      */
-    val Gemini2_5Flash = LLModel(
+    val Gemini3_5Flash = LLModel(
         provider = FirebaseLLMProvider,
-        id = "gemini-2.5-flash",
-        capabilities = standardCapabilities + LLMCapability.Speculation,
+        id = "gemini-3.5-flash",
+        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        contextLength = 1_048_576,
+        maxOutputTokens = 65_536,
+    )
+
+    /**
+     * Gemini 3.1 Pro - Advanced reasoning model (preview).
+     */
+    val Gemini3_1Pro = LLModel(
+        provider = FirebaseLLMProvider,
+        id = "gemini-3.1-pro-preview",
+        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        contextLength = 1_048_576,
+        maxOutputTokens = 65_536,
+    )
+
+    /**
+     * Gemini 3.1 Flash-Lite - Ultra-fast, budget-friendly model.
+     */
+    val Gemini3_1FlashLite = LLModel(
+        provider = FirebaseLLMProvider,
+        id = "gemini-3.1-flash-lite",
+        capabilities = standardCapabilities + LLMCapability.Vision.Image,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -30,38 +54,40 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini2_5Pro = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-pro",
-        capabilities = standardCapabilities + LLMCapability.Speculation,
+        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
 
     /**
-     * Gemini 2.0 Flash - Fast model with image vision support.
+     * Gemini 2.5 Flash - Fast and efficient model with speculation support.
      */
-    val Gemini2_0Flash = LLModel(
+    val Gemini2_5Flash = LLModel(
         provider = FirebaseLLMProvider,
-        id = "gemini-2.0-flash",
-        capabilities = standardCapabilities + LLMCapability.Vision.Image,
+        id = "gemini-2.5-flash",
+        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
         contextLength = 1_048_576,
-        maxOutputTokens = 8_192,
+        maxOutputTokens = 65_536,
     )
 
     /**
-     * Gemini 2.0 Flash Lite - Lightweight and efficient model.
+     * Gemini 2.5 Flash-Lite - Budget-friendly Flash variant.
      */
-    val Gemini2_0FlashLite = LLModel(
+    val Gemini2_5FlashLite = LLModel(
         provider = FirebaseLLMProvider,
-        id = "gemini-2.0-flash-lite",
-        capabilities = standardCapabilities,
+        id = "gemini-2.5-flash-lite",
+        capabilities = standardCapabilities + LLMCapability.Vision.Image,
         contextLength = 1_048_576,
-        maxOutputTokens = 8_192,
+        maxOutputTokens = 65_536,
     )
 
     private val supportedModels: List<LLModel> = listOf(
-        Gemini2_5Flash,
+        Gemini3_5Flash,
+        Gemini3_1Pro,
+        Gemini3_1FlashLite,
         Gemini2_5Pro,
-        Gemini2_0Flash,
-        Gemini2_0FlashLite,
+        Gemini2_5Flash,
+        Gemini2_5FlashLite,
     )
 
     private val customModels: MutableList<LLModel> = mutableListOf()
