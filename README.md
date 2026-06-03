@@ -13,6 +13,7 @@ Firebase Vertex AI integration for the [Koog Agent Framework](https://github.com
 - Seamless integration with Koog agents
 - Pre-configured Gemini model definitions
 - Streaming response support
+- Function calling (tool) support
 
 ## Installation
 
