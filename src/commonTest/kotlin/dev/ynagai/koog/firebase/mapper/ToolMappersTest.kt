@@ -82,4 +82,60 @@ class ToolMappersTest {
         assertEquals(SchemaType.STRING, kind?.type)
         assertEquals(listOf("a", "b"), kind?.enumValues)
     }
+
+    @Test
+    fun anyOfWithNullCollapsesToNullableUnderlyingType() {
+        val descriptor = ToolDescriptor(
+            name = "nullable_tool",
+            description = "tool with a nullable union parameter",
+            requiredParameters = listOf(
+                ToolParameterDescriptor(
+                    name = "value",
+                    description = "string or null",
+                    type = ToolParameterType.AnyOf(
+                        arrayOf(
+                            ToolParameterDescriptor("s", "string member", ToolParameterType.String),
+                            ToolParameterDescriptor("n", "null member", ToolParameterType.Null),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val declaration = (listOf(descriptor).toFirebaseTools()[0] as Tool.FunctionDeclarations)
+            .declarations.single()
+
+        val value = declaration.parameters.getValue("value")
+        assertEquals(SchemaType.STRING, value.type)
+        assertEquals(true, value.nullable)
+        assertEquals("string or null", value.description)
+    }
+
+    @Test
+    fun anyOfWithMultipleNonNullMembersFallsBackToFirst() {
+        val descriptor = ToolDescriptor(
+            name = "union_tool",
+            description = "tool with a multi-member union parameter",
+            requiredParameters = listOf(
+                ToolParameterDescriptor(
+                    name = "value",
+                    description = "string or integer",
+                    type = ToolParameterType.AnyOf(
+                        arrayOf(
+                            ToolParameterDescriptor("s", "string member", ToolParameterType.String),
+                            ToolParameterDescriptor("i", "integer member", ToolParameterType.Integer),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val declaration = (listOf(descriptor).toFirebaseTools()[0] as Tool.FunctionDeclarations)
+            .declarations.single()
+
+        // No Null member, so the union falls back to the first non-null type and is not forced nullable.
+        val value = declaration.parameters.getValue("value")
+        assertEquals(SchemaType.STRING, value.type)
+        assertTrue(value.nullable != true)
+    }
 }
