@@ -172,6 +172,48 @@ class MessageMappersTest {
     }
 
     @Test
+    fun binaryAudioAttachmentMapsToInlineDataPart() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Attachment(
+                    source = AttachmentSource.Audio(
+                        content = AttachmentContent.Binary.Bytes(byteArrayOf(4, 5, 6)),
+                        format = "mp3",
+                        mimeType = "audio/mpeg",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("audio/mpeg", inline.mimeType)
+        assertContentEquals(byteArrayOf(4, 5, 6), inline.data)
+    }
+
+    @Test
+    fun plainTextFileAttachmentMapsToTextPart() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Attachment(
+                    source = AttachmentSource.File(
+                        content = AttachmentContent.PlainText("file contents"),
+                        format = "txt",
+                        mimeType = "text/plain",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        assertEquals(listOf("file contents"), content.parts.filterIsInstance<TextPart>().map { it.text })
+    }
+
+    @Test
     fun userToolResultWithPlainStringIsWrapped() {
         val message = Message.User(
             parts = listOf(
