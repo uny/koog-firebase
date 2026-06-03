@@ -13,6 +13,7 @@ Firebase Vertex AI integration for the [Koog Agent Framework](https://github.com
 - Seamless integration with Koog agents
 - Pre-configured Gemini model definitions
 - Streaming response support
+- Function calling (tool) support
 
 ## Installation
 
@@ -22,7 +23,7 @@ Add to your `libs.versions.toml`:
 
 ```toml
 [versions]
-koog-firebase = "0.4.0"
+koog-firebase = "0.5.0"
 
 [libraries]
 koog-firebase = { module = "dev.ynagai.koog.firebase:koog-firebase", version.ref = "koog-firebase" }
@@ -40,7 +41,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog.firebase:koog-firebase:0.4.0")
+    implementation("dev.ynagai.koog.firebase:koog-firebase:0.5.0")
 }
 ```
 
