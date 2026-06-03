@@ -22,10 +22,8 @@ internal fun GenerateContentResponse.toKoog(clock: KoogClock): List<Message.Assi
         val responseParts: List<MessagePart.ResponsePart> = candidate.content.parts.mapNotNull { part ->
             when (part) {
                 is TextPart -> MessagePart.Text(part.text)
-                // firebase-ai's FunctionCallPart carries no call id, so there is nothing to
-                // propagate here. Gemini correlates a FunctionResponsePart to its call by name.
                 is FunctionCallPart -> MessagePart.Tool.Call(
-                    id = null,
+                    id = part.id,
                     tool = part.name,
                     args = part.args.toJsonObject(),
                 )

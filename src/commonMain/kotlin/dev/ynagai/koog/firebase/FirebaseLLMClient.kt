@@ -92,11 +92,9 @@ class FirebaseLLMClient(
                         candidate.content.parts.forEach { part ->
                             when (part) {
                                 is TextPart -> emit(StreamFrame.TextDelta(part.text))
-                                // firebase-ai's FunctionCallPart carries no call id; Gemini
-                                // correlates the response to the call by name, so null is fine.
                                 is FunctionCallPart -> emit(
                                     StreamFrame.ToolCallComplete(
-                                        id = null,
+                                        id = part.id,
                                         name = part.name,
                                         content = part.args.toJsonObject().toString(),
                                     )

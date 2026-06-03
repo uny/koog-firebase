@@ -29,8 +29,8 @@ private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
 
 private fun MessagePart.toFirebasePart(): Part? = when (this) {
     is MessagePart.Text -> TextPart(text)
-    is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap())
-    is MessagePart.Tool.Result -> FunctionResponsePart(name = tool, response = output.toResponseMap())
+    is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap(), id = id)
+    is MessagePart.Tool.Result -> FunctionResponsePart(name = tool, response = output.toResponseMap(), id = id)
     else -> null
 }
 

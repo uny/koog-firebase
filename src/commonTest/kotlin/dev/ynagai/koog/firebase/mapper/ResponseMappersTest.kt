@@ -54,7 +54,7 @@ class ResponseMappersTest {
                     content = Content(
                         role = "model",
                         parts = listOf(
-                            FunctionCallPart(name = "get_weather", args = mapOf("city" to "Tokyo")),
+                            FunctionCallPart(name = "get_weather", args = mapOf("city" to "Tokyo"), id = "call_1"),
                         ),
                     ),
                 ),
@@ -66,5 +66,6 @@ class ResponseMappersTest {
         val call = assistants.single().parts.filterIsInstance<MessagePart.Tool.Call>().single()
         assertEquals("get_weather", call.tool)
         assertEquals("Tokyo", call.argsJson.getValue("city").jsonPrimitive.content)
+        assertEquals("call_1", call.id)
     }
 }

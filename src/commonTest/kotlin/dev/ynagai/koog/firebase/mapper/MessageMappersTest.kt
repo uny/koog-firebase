@@ -95,6 +95,7 @@ class MessageMappersTest {
         val call = content.parts.filterIsInstance<FunctionCallPart>().single()
         assertEquals("get_weather", call.name)
         assertEquals("Tokyo", call.args["city"])
+        assertEquals("1", call.id)
     }
 
     @Test
@@ -116,6 +117,7 @@ class MessageMappersTest {
         val response = content.parts.filterIsInstance<FunctionResponsePart>().single()
         assertEquals("get_weather", response.name)
         assertEquals(20L, response.response["temperature"])
+        assertEquals("1", response.id)
     }
 
     @Test
