@@ -24,3 +24,6 @@ Thumbs.db
 DerivedData/
 StartYourBridgeHere.swift
 .swiftpm-locks/
+
+# --- Local working docs (not for publishing) ---
+docs/local/

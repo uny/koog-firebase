@@ -18,6 +18,7 @@ import dev.ynagai.firebase.ai.GenerativeModel
 import dev.ynagai.firebase.ai.TextPart
 import dev.ynagai.koog.firebase.mapper.extractSystemInstruction
 import dev.ynagai.koog.firebase.mapper.toFirebase
+import dev.ynagai.koog.firebase.mapper.toFirebaseToolConfig
 import dev.ynagai.koog.firebase.mapper.toFirebaseTools
 import dev.ynagai.koog.firebase.mapper.toGenerationConfig
 import dev.ynagai.koog.firebase.mapper.toJsonObject
@@ -154,11 +155,15 @@ class FirebaseLLMClient(
     ): GenerativeModel {
         val systemInstruction = prompt.messages.extractSystemInstruction()
         val generationConfig: GenerationConfig? = prompt.params.toGenerationConfig()
+        val firebaseTools = tools.toFirebaseTools().ifEmpty { null }
+        // Tool choice is only meaningful when tools are available.
+        val toolConfig = firebaseTools?.let { prompt.params.toolChoice?.toFirebaseToolConfig() }
         return firebaseAI.generativeModel(
             modelName = model.id,
             generationConfig = generationConfig,
             systemInstruction = systemInstruction,
-            tools = tools.toFirebaseTools().ifEmpty { null },
+            tools = firebaseTools,
+            toolConfig = toolConfig,
         )
     }
 }
