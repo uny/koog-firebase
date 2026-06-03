@@ -1,16 +1,21 @@
 package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.message.ResponseMetaInfo
+import dev.ynagai.firebase.ai.FileDataPart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.FunctionResponsePart
+import dev.ynagai.firebase.ai.InlineDataPart
 import dev.ynagai.firebase.ai.TextPart
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -118,6 +123,52 @@ class MessageMappersTest {
         assertEquals("get_weather", response.name)
         assertEquals(20L, response.response["temperature"])
         assertEquals("1", response.id)
+    }
+
+    @Test
+    fun binaryImageAttachmentMapsToInlineDataPart() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Text("look at this"),
+                MessagePart.Attachment(
+                    source = AttachmentSource.Image(
+                        content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                        format = "png",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        assertEquals("user", content.role)
+        assertEquals(listOf("look at this"), content.parts.filterIsInstance<TextPart>().map { it.text })
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("image/png", inline.mimeType)
+        assertContentEquals(byteArrayOf(1, 2, 3), inline.data)
+    }
+
+    @Test
+    fun urlFileAttachmentMapsToFileDataPart() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Attachment(
+                    source = AttachmentSource.File(
+                        content = AttachmentContent.URL("gs://bucket/doc.pdf"),
+                        format = "pdf",
+                        mimeType = "application/pdf",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        val fileData = content.parts.filterIsInstance<FileDataPart>().single()
+        assertEquals("application/pdf", fileData.mimeType)
+        assertEquals("gs://bucket/doc.pdf", fileData.uri)
     }
 
     @Test

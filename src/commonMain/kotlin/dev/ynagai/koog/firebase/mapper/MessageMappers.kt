@@ -1,10 +1,14 @@
 package dev.ynagai.koog.firebase.mapper
 
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import dev.ynagai.firebase.ai.Content
+import dev.ynagai.firebase.ai.FileDataPart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.FunctionResponsePart
+import dev.ynagai.firebase.ai.InlineDataPart
 import dev.ynagai.firebase.ai.Part
 import dev.ynagai.firebase.ai.TextPart
 import kotlinx.serialization.json.Json
@@ -31,9 +35,20 @@ private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
 /** Maps a single Koog [MessagePart] to a Firebase [Part], or `null` if the part has no Firebase equivalent. */
 private fun MessagePart.toFirebasePart(): Part? = when (this) {
     is MessagePart.Text -> TextPart(text)
+    is MessagePart.Attachment -> source.toFirebasePart()
     is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap(), id = id)
     is MessagePart.Tool.Result -> FunctionResponsePart(name = tool, response = output.toResponseMap(), id = id)
     else -> null
+}
+
+/**
+ * Maps a Koog attachment to the matching Firebase [Part]: binary data is sent inline, a URL/URI is
+ * referenced via [FileDataPart], and plain text (only valid for file attachments) becomes a [TextPart].
+ */
+private fun AttachmentSource.toFirebasePart(): Part = when (val attachmentContent = content) {
+    is AttachmentContent.Binary -> InlineDataPart(mimeType = mimeType, data = attachmentContent.asBytes())
+    is AttachmentContent.URL -> FileDataPart(mimeType = mimeType, uri = attachmentContent.url)
+    is AttachmentContent.PlainText -> TextPart(attachmentContent.text)
 }
 
 /**
