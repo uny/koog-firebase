@@ -40,6 +40,7 @@ class ToolMappersTest {
         assertEquals(setOf("city", "days"), declaration.parameters.keys)
         assertEquals(SchemaType.STRING, declaration.parameters.getValue("city").type)
         assertEquals(SchemaType.INTEGER, declaration.parameters.getValue("days").type)
+        assertEquals("int64", declaration.parameters.getValue("days").format)
         assertEquals(listOf("days"), declaration.optionalParameters)
     }
 

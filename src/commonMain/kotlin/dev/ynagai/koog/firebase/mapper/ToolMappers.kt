@@ -30,7 +30,9 @@ internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {
 
 private fun ToolParameterType.toSchema(description: String? = null): Schema = when (this) {
     ToolParameterType.String -> Schema.string(description)
-    ToolParameterType.Integer -> Schema.integer(description)
+    // Koog's Integer/Float carry no bit-width, so map to the wider Firebase types (int64/double)
+    // to avoid narrowing large or high-precision values the model may produce.
+    ToolParameterType.Integer -> Schema.long(description)
     ToolParameterType.Float -> Schema.double(description)
     ToolParameterType.Boolean -> Schema.boolean(description)
     ToolParameterType.Null -> Schema.string(description = description, nullable = true)

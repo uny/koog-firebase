@@ -132,4 +132,29 @@ class MessageMappersTest {
         val response = content.parts.filterIsInstance<FunctionResponsePart>().single()
         assertEquals(mapOf("result" to "done"), response.response)
     }
+
+    @Test
+    fun userToolResultWithJsonArrayPreservesStructure() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Tool.Result(id = "1", tool = "list", output = "[1,2,3]"),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        val response = content.parts.filterIsInstance<FunctionResponsePart>().single()
+        assertEquals(mapOf("result" to listOf(1L, 2L, 3L)), response.response)
+    }
+
+    @Test
+    fun assistantWithOnlyUnsupportedPartsIsSkipped() {
+        val message = Message.Assistant(
+            parts = listOf(MessagePart.Reasoning("thinking")),
+            metaInfo = ResponseMetaInfo.Empty,
+        )
+
+        assertTrue(listOf<Message>(message).toFirebase().isEmpty())
+    }
 }

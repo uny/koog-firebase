@@ -11,17 +11,20 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
 internal fun Message.toFirebase(): Content? = when (this) {
-    is Message.User -> Content(
-        role = "user",
-        parts = parts.mapNotNull { it.toFirebasePart() },
-    )
-
-    is Message.Assistant -> Content(
-        role = "model",
-        parts = parts.mapNotNull { it.toFirebasePart() },
-    )
-
+    is Message.User -> parts.toFirebaseContent(role = "user")
+    is Message.Assistant -> parts.toFirebaseContent(role = "model")
     else -> null
+}
+
+/**
+ * Maps message parts to a Firebase [Content]. Firebase rejects a [Content] with no parts, so a
+ * message whose parts are all unsupported (e.g. an attachment-only user message or a
+ * reasoning-only assistant message) is skipped by returning `null` rather than emitting an
+ * invalid empty content.
+ */
+private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
+    val firebaseParts = mapNotNull { it.toFirebasePart() }
+    return if (firebaseParts.isEmpty()) null else Content(role = role, parts = firebaseParts)
 }
 
 private fun MessagePart.toFirebasePart(): Part? = when (this) {
@@ -32,12 +35,17 @@ private fun MessagePart.toFirebasePart(): Part? = when (this) {
 }
 
 /**
- * Firebase expects a structured object for a function response. If the tool output is itself a
- * JSON object we forward it as-is, otherwise we wrap the raw string under a "result" key.
+ * Firebase expects a structured object for a function response. A JSON object is forwarded as-is.
+ * A non-object JSON value (array, number, boolean) is preserved structurally under a "result" key,
+ * and a value that is not valid JSON is wrapped as the raw string under "result".
  */
 private fun String.toResponseMap(): Map<String, Any?> {
     val parsed = runCatching { Json.parseToJsonElement(this) }.getOrNull()
-    return if (parsed is JsonObject) parsed.toAnyMap() else mapOf("result" to this)
+    return when (parsed) {
+        is JsonObject -> parsed.toAnyMap()
+        null -> mapOf("result" to this)
+        else -> mapOf("result" to parsed.toAnyValue())
+    }
 }
 
 internal fun List<Message>.toFirebase(): List<Content> = mapNotNull(Message::toFirebase)
