@@ -13,6 +13,7 @@ object FirebaseModels : LLModelDefinitions {
     private val standardCapabilities: List<LLMCapability> = listOf(
         LLMCapability.Temperature,
         LLMCapability.Completion,
+        LLMCapability.Tools,
     )
 
     /**
