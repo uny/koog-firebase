@@ -10,6 +10,7 @@ import dev.ynagai.firebase.ai.TextPart
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
+/** Converts a Koog [Message] into a Firebase [Content], or `null` for unsupported message kinds. */
 internal fun Message.toFirebase(): Content? = when (this) {
     is Message.User -> parts.toFirebaseContent(role = "user")
     is Message.Assistant -> parts.toFirebaseContent(role = "model")
@@ -27,6 +28,7 @@ private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
     return if (firebaseParts.isEmpty()) null else Content(role = role, parts = firebaseParts)
 }
 
+/** Maps a single Koog [MessagePart] to a Firebase [Part], or `null` if the part has no Firebase equivalent. */
 private fun MessagePart.toFirebasePart(): Part? = when (this) {
     is MessagePart.Text -> TextPart(text)
     is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap(), id = id)
@@ -48,8 +50,10 @@ private fun String.toResponseMap(): Map<String, Any?> {
     }
 }
 
+/** Converts a list of Koog messages into Firebase [Content]s, dropping unsupported messages. */
 internal fun List<Message>.toFirebase(): List<Content> = mapNotNull(Message::toFirebase)
 
+/** Collects all [Message.System] messages into a single Firebase system-instruction [Content]. */
 internal fun List<Message>.extractSystemInstruction(): Content? {
     val systemMessages = filterIsInstance<Message.System>()
     if (systemMessages.isEmpty()) return null

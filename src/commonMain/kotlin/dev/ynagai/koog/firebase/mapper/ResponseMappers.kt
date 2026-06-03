@@ -8,6 +8,7 @@ import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.GenerateContentResponse
 import dev.ynagai.firebase.ai.TextPart
 
+/** Converts a Firebase [GenerateContentResponse] into Koog [Message.Assistant]s, mapping text and tool-call parts. */
 internal fun GenerateContentResponse.toKoog(clock: KoogClock): List<Message.Assistant> {
     val inputTokensCount = usageMetadata?.promptTokenCount
     val outputTokensCount = usageMetadata?.candidatesTokenCount

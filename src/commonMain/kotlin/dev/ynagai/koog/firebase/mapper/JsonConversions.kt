@@ -15,9 +15,11 @@ import kotlinx.serialization.json.longOrNull
  * Koog uses for tool-call arguments.
  */
 
+/** Converts a Firebase dynamic argument/response map into a Koog [JsonObject]. */
 internal fun Map<String, Any?>.toJsonObject(): JsonObject =
     JsonObject(mapValues { (_, value) -> value.toJsonElement() })
 
+/** Wraps a single dynamic Firebase value (primitive, map, or list) as a [JsonElement]. */
 internal fun Any?.toJsonElement(): JsonElement = when (this) {
     null -> JsonNull
     is JsonElement -> this
@@ -29,8 +31,10 @@ internal fun Any?.toJsonElement(): JsonElement = when (this) {
     else -> JsonPrimitive(toString())
 }
 
+/** Converts a Koog [JsonObject] back into the dynamic map shape Firebase expects. */
 internal fun JsonObject.toAnyMap(): Map<String, Any?> = mapValues { (_, value) -> value.toAnyValue() }
 
+/** Unwraps a [JsonElement] into a plain Kotlin value (String/Boolean/Long/Double, map, or list). */
 internal fun JsonElement.toAnyValue(): Any? = when (this) {
     is JsonNull -> null
     is JsonPrimitive -> when {

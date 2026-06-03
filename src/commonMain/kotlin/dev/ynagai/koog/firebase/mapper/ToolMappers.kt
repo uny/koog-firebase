@@ -18,6 +18,7 @@ internal fun List<ToolDescriptor>.toFirebaseTools(): List<Tool> =
         listOf(Tool.functionDeclarations(map { it.toFunctionDeclaration() }))
     }
 
+/** Converts a single Koog [ToolDescriptor] into a Firebase [FunctionDeclaration]. */
 internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {
     val allParameters = requiredParameters + optionalParameters
     return FunctionDeclaration(
@@ -28,6 +29,7 @@ internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {
     )
 }
 
+/** Maps a Koog [ToolParameterType] to the corresponding Firebase [Schema], recursing into nested types. */
 private fun ToolParameterType.toSchema(description: String? = null): Schema = when (this) {
     ToolParameterType.String -> Schema.string(description)
     // Koog's Integer/Float carry no bit-width, so map to the wider Firebase types (int64/double)
