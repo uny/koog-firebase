@@ -13,11 +13,13 @@ import ai.koog.prompt.streaming.StreamFrame
 import ai.koog.utils.time.KoogClock
 import dev.ynagai.firebase.ai.FirebaseAI
 import dev.ynagai.firebase.ai.FunctionCallPart
+import dev.ynagai.firebase.ai.GenerationConfig
 import dev.ynagai.firebase.ai.GenerativeModel
 import dev.ynagai.firebase.ai.TextPart
 import dev.ynagai.koog.firebase.mapper.extractSystemInstruction
 import dev.ynagai.koog.firebase.mapper.toFirebase
 import dev.ynagai.koog.firebase.mapper.toFirebaseTools
+import dev.ynagai.koog.firebase.mapper.toGenerationConfig
 import dev.ynagai.koog.firebase.mapper.toJsonObject
 import dev.ynagai.koog.firebase.mapper.toKoog
 import kotlinx.coroutines.CancellationException
@@ -41,7 +43,7 @@ class FirebaseLLMClient(
         tools: List<ToolDescriptor>
     ): Message.Assistant {
         return try {
-            val generativeModel = createGenerativeModel(model, prompt.messages, tools)
+            val generativeModel = createGenerativeModel(model, prompt, tools)
             val contents = prompt.messages.toFirebase()
             val response = generativeModel.generateContent(*contents.toTypedArray())
             response.toKoog(clock).firstOrNull() ?: run {
@@ -71,7 +73,7 @@ class FirebaseLLMClient(
         tools: List<ToolDescriptor>
     ): Flow<StreamFrame> = flow {
         try {
-            val generativeModel = createGenerativeModel(model, prompt.messages, tools)
+            val generativeModel = createGenerativeModel(model, prompt, tools)
             val contents = prompt.messages.toFirebase()
 
             var lastMetaInfo: ResponseMetaInfo? = null
@@ -129,12 +131,14 @@ class FirebaseLLMClient(
 
     private fun createGenerativeModel(
         model: LLModel,
-        messages: List<Message>,
+        prompt: Prompt,
         tools: List<ToolDescriptor>,
     ): GenerativeModel {
-        val systemInstruction = messages.extractSystemInstruction()
+        val systemInstruction = prompt.messages.extractSystemInstruction()
+        val generationConfig: GenerationConfig? = prompt.params.toGenerationConfig()
         return firebaseAI.generativeModel(
             modelName = model.id,
+            generationConfig = generationConfig,
             systemInstruction = systemInstruction,
             tools = tools.toFirebaseTools().ifEmpty { null },
         )
