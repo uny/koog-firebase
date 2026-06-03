@@ -8,7 +8,15 @@ import dev.ynagai.firebase.ai.GenerationConfig
  * parameters are set so the caller can omit the config entirely and keep the model defaults.
  */
 internal fun LLMParams.toGenerationConfig(): GenerationConfig? {
-    if (temperature == null && maxTokens == null && numberOfChoices == null) {
+    val responseSchema = (schema as? LLMParams.Schema.JSON)?.schema?.toFirebaseSchema()
+    // Gemini requires a JSON MIME type whenever a response schema is supplied.
+    val responseMimeType = if (responseSchema != null) "application/json" else null
+
+    if (temperature == null &&
+        maxTokens == null &&
+        numberOfChoices == null &&
+        responseSchema == null
+    ) {
         return null
     }
 
@@ -16,5 +24,7 @@ internal fun LLMParams.toGenerationConfig(): GenerationConfig? {
         temperature = temperature?.toFloat(),
         maxOutputTokens = maxTokens,
         candidateCount = numberOfChoices,
+        responseMimeType = responseMimeType,
+        responseSchema = responseSchema,
     )
 }

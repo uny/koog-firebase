@@ -1,6 +1,10 @@
 package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.prompt.params.LLMParams
+import dev.ynagai.firebase.ai.SchemaType
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -35,5 +39,25 @@ class ParamsMappersTest {
         assertEquals(0.2f, config.temperature)
         assertNull(config.maxOutputTokens)
         assertNull(config.candidateCount)
+    }
+
+    @Test
+    fun mapsResponseSchemaAndForcesJsonMimeType() {
+        val schema = LLMParams.Schema.JSON.Standard(
+            name = "result",
+            schema = buildJsonObject {
+                put("type", "object")
+                putJsonObject("properties") {
+                    putJsonObject("answer") { put("type", "string") }
+                }
+            },
+        )
+
+        val config = LLMParams(schema = schema).toGenerationConfig()
+
+        assertNotNull(config)
+        assertEquals("application/json", config.responseMimeType)
+        assertEquals(SchemaType.OBJECT, config.responseSchema?.type)
+        assertEquals(SchemaType.STRING, config.responseSchema?.properties?.getValue("answer")?.type)
     }
 }
