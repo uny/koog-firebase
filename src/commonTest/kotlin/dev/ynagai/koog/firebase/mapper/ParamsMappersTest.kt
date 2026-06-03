@@ -2,6 +2,9 @@ package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.prompt.params.LLMParams
 import dev.ynagai.firebase.ai.SchemaType
+import dev.ynagai.firebase.ai.ThinkingConfig
+import dev.ynagai.firebase.ai.ThinkingLevel
+import dev.ynagai.koog.firebase.FirebaseLLMParams
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -59,5 +62,23 @@ class ParamsMappersTest {
         assertEquals("application/json", config.responseMimeType)
         assertEquals(SchemaType.OBJECT, config.responseSchema?.type)
         assertEquals(SchemaType.STRING, config.responseSchema?.properties?.getValue("answer")?.type)
+    }
+
+    @Test
+    fun mapsThinkingConfigFromFirebaseParams() {
+        val thinkingConfig = ThinkingConfig(thinkingLevel = ThinkingLevel.HIGH, includeThoughts = true)
+
+        val config = FirebaseLLMParams(thinkingConfig = thinkingConfig).toGenerationConfig()
+
+        assertNotNull(config)
+        assertEquals(thinkingConfig, config.thinkingConfig)
+    }
+
+    @Test
+    fun baseParamsHaveNoThinkingConfig() {
+        val config = LLMParams(temperature = 0.3).toGenerationConfig()
+
+        assertNotNull(config)
+        assertNull(config.thinkingConfig)
     }
 }

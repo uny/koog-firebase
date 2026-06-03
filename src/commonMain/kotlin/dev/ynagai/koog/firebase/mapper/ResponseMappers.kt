@@ -22,7 +22,11 @@ internal fun GenerateContentResponse.toKoog(clock: KoogClock): List<Message.Assi
     return candidates.map { candidate ->
         val responseParts: List<MessagePart.ResponsePart> = candidate.content.parts.mapNotNull { part ->
             when (part) {
-                is TextPart -> MessagePart.Text(part.text)
+                is TextPart -> if (part.isThought) {
+                    MessagePart.Reasoning(part.text)
+                } else {
+                    MessagePart.Text(part.text)
+                }
                 is FunctionCallPart -> MessagePart.Tool.Call(
                     id = part.id,
                     tool = part.name,

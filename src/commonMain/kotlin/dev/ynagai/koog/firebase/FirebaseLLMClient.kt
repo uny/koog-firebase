@@ -112,7 +112,11 @@ class FirebaseLLMClient(
                         candidate.finishReason?.let { lastFinishReason = it.name }
                         candidate.content.parts.forEach { part ->
                             when (part) {
-                                is TextPart -> emit(StreamFrame.TextDelta(part.text))
+                                is TextPart -> if (part.isThought) {
+                                    emit(StreamFrame.ReasoningDelta(text = part.text))
+                                } else {
+                                    emit(StreamFrame.TextDelta(part.text))
+                                }
                                 is FunctionCallPart -> emit(
                                     StreamFrame.ToolCallComplete(
                                         id = part.id,

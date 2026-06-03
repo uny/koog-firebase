@@ -68,4 +68,30 @@ class ResponseMappersTest {
         assertEquals("Tokyo", call.argsJson.getValue("city").jsonPrimitive.content)
         assertEquals("call_1", call.id)
     }
+
+    @Test
+    fun mapsThoughtTextToReasoningAndKeepsPlainText() {
+        val response = GenerateContentResponse(
+            candidates = listOf(
+                Candidate(
+                    content = Content(
+                        role = "model",
+                        parts = listOf(
+                            TextPart(text = "let me think", isThought = true),
+                            TextPart(text = "the answer is 42"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val assistant = response.toKoog(KoogClock.System).single()
+
+        val reasoning = assistant.parts.filterIsInstance<MessagePart.Reasoning>().single()
+        assertEquals(listOf("let me think"), reasoning.content)
+        assertEquals(
+            listOf("the answer is 42"),
+            assistant.parts.filterIsInstance<MessagePart.Text>().map { it.text },
+        )
+    }
 }

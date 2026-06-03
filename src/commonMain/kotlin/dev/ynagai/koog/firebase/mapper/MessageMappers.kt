@@ -37,6 +37,9 @@ private fun MessagePart.toFirebasePart(): Part? = when (this) {
     is MessagePart.Attachment -> source.toFirebasePart()
     is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap(), id = id)
     is MessagePart.Tool.Result -> FunctionResponsePart(name = tool, response = output.toResponseMap(), id = id)
+    // Sending thoughts back is a no-op: the Firebase SDK has no public way to set isThought on an
+    // outgoing TextPart, so reasoning history is simply omitted from the request.
+    is MessagePart.Reasoning -> null
     else -> null
 }
 
