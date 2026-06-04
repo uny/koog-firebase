@@ -34,7 +34,7 @@ private fun JsonObject.toFirebaseSchema(
     visitedRefs: Set<String>,
 ): Schema {
     // Resolve a JSON Schema reference (e.g. `{"$ref": "#/$defs/Address"}`) against the definitions.
-    (this[REF] as? JsonPrimitive)?.contentOrNull?.let { ref ->
+    this[REF].asString()?.let { ref ->
         val target = definitions.resolveRef(ref)
         // A missing or already-visited (recursive) ref degrades to a plain string placeholder.
         if (target == null || ref in visitedRefs) return Schema.string()
@@ -47,35 +47,36 @@ private fun JsonObject.toFirebaseSchema(
     // branch, the closest representation Gemini's schema model supports.
     ((this[ONE_OF] as? JsonArray) ?: (this[ANY_OF] as? JsonArray))?.let { union ->
         val branches = union.mapNotNull { it as? JsonObject }
-        val nullableFromUnion = branches.any { (it[TYPE] as? JsonPrimitive)?.contentOrNull == "null" }
-        branches.firstOrNull { (it[TYPE] as? JsonPrimitive)?.contentOrNull != "null" }?.let { primary ->
+        val nullableFromUnion = branches.any { it[TYPE].asString() == "null" }
+        branches.firstOrNull { it[TYPE].asString() != "null" }?.let { primary ->
             val resolved = primary.toFirebaseSchema(definitions, visitedRefs)
-            val withNullable = if (nullableFromUnion && !resolved.nullable) resolved.copy(nullable = true) else resolved
             // The description lives on the union node, not the branches; keep it.
-            return withNullable.withDescriptionOf(this)
+            return resolved.copy(nullable = resolved.nullable || nullableFromUnion).withDescriptionOf(this)
         }
     }
 
-    val (typeName, nullableFromType) = (this[TYPE]).extractType()
-    val description = (this[DESCRIPTION] as? JsonPrimitive)?.contentOrNull
-    val format = (this["format"] as? JsonPrimitive)?.contentOrNull
-    val nullable = nullableFromType || ((this["nullable"] as? JsonPrimitive)?.booleanOrNull == true)
-    val enumValues = (this[ENUM] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+    val (typeName, nullableFromType) = this[TYPE].extractType()
+    val description = this[DESCRIPTION].asString()
+    val format = this[FORMAT].asString()
+    val nullable = nullableFromType || ((this[NULLABLE] as? JsonPrimitive)?.booleanOrNull == true)
 
     return when (typeName) {
         "integer", "number", "boolean" -> Schema(
-            type = typeName.toSchemaType(),
+            type = when (typeName) {
+                "integer" -> SchemaType.INTEGER
+                "number" -> SchemaType.NUMBER
+                else -> SchemaType.BOOLEAN
+            },
             description = description,
             format = format,
             nullable = nullable,
         )
 
-        "array" -> Schema(
-            type = SchemaType.ARRAY,
+        "array" -> Schema.array(
+            items = (this[ITEMS] as? JsonObject)?.toFirebaseSchema(definitions, visitedRefs)
+                ?: Schema.string(),
             description = description,
             nullable = nullable,
-            items = (this["items"] as? JsonObject)?.toFirebaseSchema(definitions, visitedRefs)
-                ?: Schema.string(),
         )
 
         "object" -> Schema(
@@ -87,8 +88,7 @@ private fun JsonObject.toFirebaseSchema(
                     (value as? JsonObject)?.let { key to it.toFirebaseSchema(definitions, visitedRefs) }
                 }
                 ?.toMap(),
-            requiredProperties = (this["required"] as? JsonArray)
-                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
+            requiredProperties = (this[REQUIRED] as? JsonArray)?.mapNotNull { it.asString() },
         )
 
         else -> Schema(
@@ -96,7 +96,7 @@ private fun JsonObject.toFirebaseSchema(
             description = description,
             format = format,
             nullable = nullable,
-            enumValues = enumValues,
+            enumValues = (this[ENUM] as? JsonArray)?.mapNotNull { it.asString() },
         )
     }
 }
@@ -114,14 +114,10 @@ private fun JsonObject.resolveRef(ref: String): JsonObject? =
  * (which Koog emits alongside those keywords) is not lost.
  */
 private fun Schema.withDescriptionOf(node: JsonObject): Schema =
-    (node[DESCRIPTION] as? JsonPrimitive)?.contentOrNull?.let { copy(description = it) } ?: this
+    node[DESCRIPTION].asString()?.let { copy(description = it) } ?: this
 
-private fun String.toSchemaType(): SchemaType = when (this) {
-    "integer" -> SchemaType.INTEGER
-    "number" -> SchemaType.NUMBER
-    "boolean" -> SchemaType.BOOLEAN
-    else -> SchemaType.STRING
-}
+/** Reads a JSON string value, or null when the element is absent or not a string primitive. */
+private fun JsonElement?.asString(): String? = (this as? JsonPrimitive)?.contentOrNull
 
 /**
  * Resolves a JSON Schema `type` keyword that may be either a single type string or an array of
@@ -130,7 +126,7 @@ private fun String.toSchemaType(): SchemaType = when (this) {
 private fun JsonElement?.extractType(): Pair<String?, Boolean> = when (this) {
     is JsonPrimitive -> contentOrNull to false
     is JsonArray -> {
-        val types = mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        val types = mapNotNull { it.asString() }
         types.firstOrNull { it != "null" } to types.contains("null")
     }
     else -> null to false
@@ -139,7 +135,11 @@ private fun JsonElement?.extractType(): Pair<String?, Boolean> = when (this) {
 private const val DEFS = "\$defs"
 private const val REF = "\$ref"
 private const val TYPE = "type"
+private const val FORMAT = "format"
+private const val NULLABLE = "nullable"
 private const val PROPERTIES = "properties"
+private const val REQUIRED = "required"
+private const val ITEMS = "items"
 private const val ENUM = "enum"
 private const val ONE_OF = "oneOf"
 private const val ANY_OF = "anyOf"
