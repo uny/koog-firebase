@@ -8,17 +8,13 @@ import dev.ynagai.firebase.ai.GenerationConfig
  * parameters are set so the caller can omit the config entirely and keep the model defaults.
  */
 internal fun LLMParams.toGenerationConfig(): GenerationConfig? {
-    val mappedTemperature = temperature?.toFloat()
-    val mappedMaxOutputTokens = maxTokens
-    val mappedCandidateCount = numberOfChoices
-
-    if (mappedTemperature == null && mappedMaxOutputTokens == null && mappedCandidateCount == null) {
+    if (temperature == null && maxTokens == null && numberOfChoices == null) {
         return null
     }
 
     return GenerationConfig(
-        temperature = mappedTemperature,
-        maxOutputTokens = mappedMaxOutputTokens,
-        candidateCount = mappedCandidateCount,
+        temperature = temperature?.toFloat(),
+        maxOutputTokens = maxTokens,
+        candidateCount = numberOfChoices,
     )
 }

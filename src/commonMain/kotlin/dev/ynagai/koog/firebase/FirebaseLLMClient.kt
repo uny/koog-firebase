@@ -41,12 +41,30 @@ class FirebaseLLMClient(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>
-    ): Message.Assistant {
+    ): Message.Assistant = generateContent(prompt, model, tools).first()
+
+    override suspend fun executeMultipleChoices(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): List<Message.Assistant> = generateContent(prompt, model, tools)
+
+    /**
+     * Runs a single (non-streaming) generation and maps every returned candidate to a Koog
+     * [Message.Assistant]. The result is guaranteed non-empty: when Firebase returns no content
+     * an [LLMClientException] is thrown instead. Shared by [execute] (first candidate) and
+     * [executeMultipleChoices] (all candidates).
+     */
+    private suspend fun generateContent(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>,
+    ): List<Message.Assistant> {
         return try {
             val generativeModel = createGenerativeModel(model, prompt, tools)
             val contents = prompt.messages.toFirebase()
             val response = generativeModel.generateContent(*contents.toTypedArray())
-            response.toKoog(clock).firstOrNull() ?: run {
+            response.toKoog(clock).ifEmpty {
                 val blockReason = response.promptFeedback?.blockReason?.name
                 throw LLMClientException(
                     clientName = clientName,
