@@ -39,6 +39,14 @@ internal fun LLMParams.ToolChoice.toFirebaseToolConfig(): ToolConfig = ToolConfi
     },
 )
 
+/**
+ * Resolves the Firebase [ToolConfig] for a request. Tool choice is only meaningful when tools are
+ * available, so this returns `null` when [tools] is `null` — even if a [toolChoice] is set —
+ * because Firebase rejects a forcing mode (e.g. `ANY`) when no functions are declared.
+ */
+internal fun resolveToolConfig(tools: List<Tool>?, toolChoice: LLMParams.ToolChoice?): ToolConfig? =
+    if (tools != null) toolChoice?.toFirebaseToolConfig() else null
+
 /** Converts a single Koog [ToolDescriptor] into a Firebase [FunctionDeclaration]. */
 internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {
     val allParameters = requiredParameters + optionalParameters

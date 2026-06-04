@@ -173,4 +173,29 @@ class ToolMappersTest {
         assertNull(LLMParams.ToolChoice.None.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
         assertNull(LLMParams.ToolChoice.Required.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
     }
+
+    @Test
+    fun resolveToolConfigMapsChoiceWhenToolsArePresent() {
+        val tools = listOf(
+            ToolDescriptor("get_weather", "Get the weather"),
+        ).toFirebaseTools()
+
+        val config = resolveToolConfig(tools, LLMParams.ToolChoice.Required)
+
+        assertEquals(FunctionCallingMode.ANY, config?.functionCallingConfig?.mode)
+    }
+
+    @Test
+    fun resolveToolConfigIsNullWhenNoToolsEvenIfChoiceSet() {
+        assertNull(resolveToolConfig(null, LLMParams.ToolChoice.Required))
+    }
+
+    @Test
+    fun resolveToolConfigIsNullWhenNoChoiceSet() {
+        val tools = listOf(
+            ToolDescriptor("get_weather", "Get the weather"),
+        ).toFirebaseTools()
+
+        assertNull(resolveToolConfig(tools, null))
+    }
 }
