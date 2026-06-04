@@ -2,9 +2,13 @@ package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.agents.core.tools.ToolDescriptor
 import ai.koog.agents.core.tools.ToolParameterType
+import ai.koog.prompt.params.LLMParams
+import dev.ynagai.firebase.ai.FunctionCallingConfig
+import dev.ynagai.firebase.ai.FunctionCallingMode
 import dev.ynagai.firebase.ai.FunctionDeclaration
 import dev.ynagai.firebase.ai.Schema
 import dev.ynagai.firebase.ai.Tool
+import dev.ynagai.firebase.ai.ToolConfig
 
 /**
  * Converts Koog [ToolDescriptor]s into the single Firebase [Tool] that carries their
@@ -17,6 +21,31 @@ internal fun List<ToolDescriptor>.toFirebaseTools(): List<Tool> =
     } else {
         listOf(Tool.functionDeclarations(map { it.toFunctionDeclaration() }))
     }
+
+/**
+ * Maps a Koog [LLMParams.ToolChoice] to a Firebase [ToolConfig]. Firebase has no dedicated
+ * "force a specific tool" mode, so [LLMParams.ToolChoice.Named] is expressed as the `ANY` mode
+ * restricted to a single allowed function name.
+ */
+internal fun LLMParams.ToolChoice.toFirebaseToolConfig(): ToolConfig = ToolConfig(
+    functionCallingConfig = when (this) {
+        LLMParams.ToolChoice.Auto -> FunctionCallingConfig(mode = FunctionCallingMode.AUTO)
+        LLMParams.ToolChoice.None -> FunctionCallingConfig(mode = FunctionCallingMode.NONE)
+        LLMParams.ToolChoice.Required -> FunctionCallingConfig(mode = FunctionCallingMode.ANY)
+        is LLMParams.ToolChoice.Named -> FunctionCallingConfig(
+            mode = FunctionCallingMode.ANY,
+            allowedFunctionNames = listOf(name),
+        )
+    },
+)
+
+/**
+ * Resolves the Firebase [ToolConfig] for a request. Tool choice is only meaningful when tools are
+ * available, so this returns `null` when [tools] is `null` — even if a [toolChoice] is set —
+ * because Firebase rejects a forcing mode (e.g. `ANY`) when no functions are declared.
+ */
+internal fun resolveToolConfig(tools: List<Tool>?, toolChoice: LLMParams.ToolChoice?): ToolConfig? =
+    if (tools != null) toolChoice?.toFirebaseToolConfig() else null
 
 /** Converts a single Koog [ToolDescriptor] into a Firebase [FunctionDeclaration]. */
 internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {

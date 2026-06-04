@@ -15,6 +15,7 @@ object FirebaseModels : LLModelDefinitions {
         LLMCapability.Completion,
         LLMCapability.MultipleChoices,
         LLMCapability.Tools,
+        LLMCapability.ToolChoice,
         // Gemini models accept image, video, audio, and document (e.g. PDF) input.
         LLMCapability.Vision.Image,
         LLMCapability.Vision.Video,

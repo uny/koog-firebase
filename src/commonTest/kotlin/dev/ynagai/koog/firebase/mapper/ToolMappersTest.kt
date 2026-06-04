@@ -3,10 +3,13 @@ package dev.ynagai.koog.firebase.mapper
 import ai.koog.agents.core.tools.ToolDescriptor
 import ai.koog.agents.core.tools.ToolParameterDescriptor
 import ai.koog.agents.core.tools.ToolParameterType
+import ai.koog.prompt.params.LLMParams
+import dev.ynagai.firebase.ai.FunctionCallingMode
 import dev.ynagai.firebase.ai.SchemaType
 import dev.ynagai.firebase.ai.Tool
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ToolMappersTest {
@@ -137,5 +140,62 @@ class ToolMappersTest {
         val value = declaration.parameters.getValue("value")
         assertEquals(SchemaType.STRING, value.type)
         assertTrue(value.nullable != true)
+    }
+
+    @Test
+    fun toolChoiceModesMapToFunctionCallingModes() {
+        assertEquals(
+            FunctionCallingMode.AUTO,
+            LLMParams.ToolChoice.Auto.toFirebaseToolConfig().functionCallingConfig?.mode,
+        )
+        assertEquals(
+            FunctionCallingMode.NONE,
+            LLMParams.ToolChoice.None.toFirebaseToolConfig().functionCallingConfig?.mode,
+        )
+        assertEquals(
+            FunctionCallingMode.ANY,
+            LLMParams.ToolChoice.Required.toFirebaseToolConfig().functionCallingConfig?.mode,
+        )
+    }
+
+    @Test
+    fun namedToolChoiceRestrictsToSingleFunction() {
+        val config = LLMParams.ToolChoice.Named("get_weather").toFirebaseToolConfig()
+
+        val functionCallingConfig = config.functionCallingConfig
+        assertEquals(FunctionCallingMode.ANY, functionCallingConfig?.mode)
+        assertEquals(listOf("get_weather"), functionCallingConfig?.allowedFunctionNames)
+    }
+
+    @Test
+    fun modesOtherThanNamedHaveNoAllowedFunctionNames() {
+        assertNull(LLMParams.ToolChoice.Auto.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
+        assertNull(LLMParams.ToolChoice.None.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
+        assertNull(LLMParams.ToolChoice.Required.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
+    }
+
+    @Test
+    fun resolveToolConfigMapsChoiceWhenToolsArePresent() {
+        val tools = listOf(
+            ToolDescriptor("get_weather", "Get the weather"),
+        ).toFirebaseTools()
+
+        val config = resolveToolConfig(tools, LLMParams.ToolChoice.Required)
+
+        assertEquals(FunctionCallingMode.ANY, config?.functionCallingConfig?.mode)
+    }
+
+    @Test
+    fun resolveToolConfigIsNullWhenNoToolsEvenIfChoiceSet() {
+        assertNull(resolveToolConfig(null, LLMParams.ToolChoice.Required))
+    }
+
+    @Test
+    fun resolveToolConfigIsNullWhenNoChoiceSet() {
+        val tools = listOf(
+            ToolDescriptor("get_weather", "Get the weather"),
+        ).toFirebaseTools()
+
+        assertNull(resolveToolConfig(tools, null))
     }
 }
