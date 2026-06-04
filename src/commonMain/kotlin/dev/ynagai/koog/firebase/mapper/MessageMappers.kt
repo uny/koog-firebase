@@ -40,7 +40,6 @@ private fun MessagePart.toFirebasePart(): Part? = when (this) {
     // Sending thoughts back is a no-op: the Firebase SDK has no public way to set isThought on an
     // outgoing TextPart, so reasoning history is simply omitted from the request.
     is MessagePart.Reasoning -> null
-    else -> null
 }
 
 /**
