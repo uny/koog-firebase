@@ -14,6 +14,11 @@ object FirebaseModels : LLModelDefinitions {
         LLMCapability.Temperature,
         LLMCapability.Completion,
         LLMCapability.Tools,
+        // Gemini models accept image, video, audio, and document (e.g. PDF) input.
+        LLMCapability.Vision.Image,
+        LLMCapability.Vision.Video,
+        LLMCapability.Audio,
+        LLMCapability.Document,
     )
 
     /**
@@ -22,7 +27,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini3_5Flash = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.5-flash",
-        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities + LLMCapability.Speculation,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -33,7 +38,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini3_1Pro = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.1-pro-preview",
-        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities + LLMCapability.Speculation,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -44,7 +49,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini3_1FlashLite = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.1-flash-lite",
-        capabilities = standardCapabilities + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -55,7 +60,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini2_5Pro = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-pro",
-        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities + LLMCapability.Speculation,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -66,7 +71,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini2_5Flash = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-flash",
-        capabilities = standardCapabilities + LLMCapability.Speculation + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities + LLMCapability.Speculation,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -77,7 +82,7 @@ object FirebaseModels : LLModelDefinitions {
     val Gemini2_5FlashLite = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-flash-lite",
-        capabilities = standardCapabilities + LLMCapability.Vision.Image,
+        capabilities = standardCapabilities,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )

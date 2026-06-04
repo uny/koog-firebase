@@ -1,10 +1,14 @@
 package dev.ynagai.koog.firebase.mapper
 
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import dev.ynagai.firebase.ai.Content
+import dev.ynagai.firebase.ai.FileDataPart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.FunctionResponsePart
+import dev.ynagai.firebase.ai.InlineDataPart
 import dev.ynagai.firebase.ai.Part
 import dev.ynagai.firebase.ai.TextPart
 import kotlinx.serialization.json.Json
@@ -19,9 +23,8 @@ internal fun Message.toFirebase(): Content? = when (this) {
 
 /**
  * Maps message parts to a Firebase [Content]. Firebase rejects a [Content] with no parts, so a
- * message whose parts are all unsupported (e.g. an attachment-only user message or a
- * reasoning-only assistant message) is skipped by returning `null` rather than emitting an
- * invalid empty content.
+ * message whose parts are all unsupported (e.g. a reasoning-only assistant message) is skipped by
+ * returning `null` rather than emitting an invalid empty content.
  */
 private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
     val firebaseParts = mapNotNull { it.toFirebasePart() }
@@ -31,9 +34,24 @@ private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
 /** Maps a single Koog [MessagePart] to a Firebase [Part], or `null` if the part has no Firebase equivalent. */
 private fun MessagePart.toFirebasePart(): Part? = when (this) {
     is MessagePart.Text -> TextPart(text)
+    is MessagePart.Attachment -> source.toFirebasePart()
     is MessagePart.Tool.Call -> FunctionCallPart(name = tool, args = argsJson.toAnyMap(), id = id)
     is MessagePart.Tool.Result -> FunctionResponsePart(name = tool, response = output.toResponseMap(), id = id)
     else -> null
+}
+
+/**
+ * Maps a Koog attachment to the matching Firebase [Part]: binary data is sent inline, a URL/URI is
+ * referenced via [FileDataPart], and plain text (only produced by file attachments) becomes a [TextPart].
+ *
+ * Note: a URL attachment is forwarded verbatim as the [FileDataPart] URI. Gemini only resolves
+ * specific URI schemes (e.g. a Cloud Storage `gs://` URI); an arbitrary `http(s)` URL is not fetched
+ * server-side and must be downloaded and passed as binary by the caller instead.
+ */
+private fun AttachmentSource.toFirebasePart(): Part = when (val attachmentContent = content) {
+    is AttachmentContent.Binary -> InlineDataPart(mimeType = mimeType, data = attachmentContent.asBytes())
+    is AttachmentContent.URL -> FileDataPart(mimeType = mimeType, uri = attachmentContent.url)
+    is AttachmentContent.PlainText -> TextPart(attachmentContent.text)
 }
 
 /**

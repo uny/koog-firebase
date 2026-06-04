@@ -1,16 +1,22 @@
 package dev.ynagai.koog.firebase.mapper
 
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.message.ResponseMetaInfo
+import dev.ynagai.firebase.ai.Content
+import dev.ynagai.firebase.ai.FileDataPart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.FunctionResponsePart
+import dev.ynagai.firebase.ai.InlineDataPart
 import dev.ynagai.firebase.ai.TextPart
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -118,6 +124,104 @@ class MessageMappersTest {
         assertEquals("get_weather", response.name)
         assertEquals(20L, response.response["temperature"])
         assertEquals("1", response.id)
+    }
+
+    /** Maps a user message carrying [source] (optionally preceded by [text]) to its single Firebase [Content]. */
+    private fun attachmentContent(source: AttachmentSource, text: String? = null): Content {
+        val parts = buildList {
+            text?.let { add(MessagePart.Text(it)) }
+            add(MessagePart.Attachment(source = source))
+        }
+        val message = Message.User(parts = parts, metaInfo = RequestMetaInfo.Empty)
+        return listOf<Message>(message).toFirebase().single()
+    }
+
+    @Test
+    fun binaryImageAttachmentMapsToInlineDataPart() {
+        val content = attachmentContent(
+            text = "look at this",
+            source = AttachmentSource.Image(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                format = "png",
+            ),
+        )
+
+        assertEquals("user", content.role)
+        assertEquals(listOf("look at this"), content.parts.filterIsInstance<TextPart>().map { it.text })
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("image/png", inline.mimeType)
+        assertContentEquals(byteArrayOf(1, 2, 3), inline.data)
+    }
+
+    @Test
+    fun urlFileAttachmentMapsToFileDataPart() {
+        val content = attachmentContent(
+            source = AttachmentSource.File(
+                content = AttachmentContent.URL("gs://bucket/doc.pdf"),
+                format = "pdf",
+                mimeType = "application/pdf",
+            ),
+        )
+
+        val fileData = content.parts.filterIsInstance<FileDataPart>().single()
+        assertEquals("application/pdf", fileData.mimeType)
+        assertEquals("gs://bucket/doc.pdf", fileData.uri)
+    }
+
+    @Test
+    fun binaryAudioAttachmentMapsToInlineDataPart() {
+        val content = attachmentContent(
+            source = AttachmentSource.Audio(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(4, 5, 6)),
+                format = "mp3",
+                mimeType = "audio/mpeg",
+            ),
+        )
+
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("audio/mpeg", inline.mimeType)
+        assertContentEquals(byteArrayOf(4, 5, 6), inline.data)
+    }
+
+    @Test
+    fun plainTextFileAttachmentMapsToTextPart() {
+        val content = attachmentContent(
+            source = AttachmentSource.File(
+                content = AttachmentContent.PlainText("file contents"),
+                format = "txt",
+                mimeType = "text/plain",
+            ),
+        )
+
+        assertEquals(listOf("file contents"), content.parts.filterIsInstance<TextPart>().map { it.text })
+    }
+
+    @Test
+    fun binaryVideoAttachmentMapsToInlineDataPart() {
+        val content = attachmentContent(
+            source = AttachmentSource.Video(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(7, 8, 9)),
+                format = "mp4",
+                mimeType = "video/mp4",
+            ),
+        )
+
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("video/mp4", inline.mimeType)
+        assertContentEquals(byteArrayOf(7, 8, 9), inline.data)
+    }
+
+    @Test
+    fun attachmentOnlyUserMessageProducesNonNullContent() {
+        val content = attachmentContent(
+            source = AttachmentSource.Image(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                format = "png",
+            ),
+        )
+
+        assertEquals("user", content.role)
+        assertEquals(1, content.parts.filterIsInstance<InlineDataPart>().size)
     }
 
     @Test
