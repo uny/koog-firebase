@@ -1,6 +1,6 @@
 # Koog Firebase
 
-[![Maven Central](https://img.shields.io/maven-central/v/dev.ynagai.koog.firebase/koog-firebase)](https://central.sonatype.com/artifact/dev.ynagai.koog.firebase/koog-firebase)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.ynagai.koog/koog-firebase)](https://central.sonatype.com/artifact/dev.ynagai.koog/koog-firebase)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/uny/koog-firebase/actions/workflows/ci.yml/badge.svg)](https://github.com/uny/koog-firebase/actions/workflows/ci.yml)
 
@@ -26,7 +26,7 @@ Add to your `libs.versions.toml`:
 koog-firebase = "0.5.0"
 
 [libraries]
-koog-firebase = { module = "dev.ynagai.koog.firebase:koog-firebase", version.ref = "koog-firebase" }
+koog-firebase = { module = "dev.ynagai.koog:koog-firebase", version.ref = "koog-firebase" }
 ```
 
 Then in your `build.gradle.kts`:
@@ -41,7 +41,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog.firebase:koog-firebase:0.5.0")
+    implementation("dev.ynagai.koog:koog-firebase:0.5.0")
 }
 ```
 
