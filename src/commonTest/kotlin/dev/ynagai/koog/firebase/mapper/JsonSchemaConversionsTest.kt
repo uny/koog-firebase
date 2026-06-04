@@ -165,4 +165,61 @@ class JsonSchemaConversionsTest {
 
         assertEquals(SchemaType.INTEGER, schema.type)
     }
+
+    @Test
+    fun keepsSiblingDescriptionOnRef() {
+        // Koog emits the property-level description alongside `$ref`; it must survive resolution and
+        // take precedence over the referenced type's own description.
+        val json = buildJsonObject {
+            put("type", "object")
+            putJsonObject("properties") {
+                putJsonObject("home") {
+                    put("\$ref", "#/\$defs/Address")
+                    put("description", "Home address")
+                }
+            }
+            putJsonObject("\$defs") {
+                putJsonObject("Address") {
+                    put("type", "object")
+                    put("description", "A postal address")
+                    putJsonObject("properties") {
+                        putJsonObject("city") { put("type", "string") }
+                    }
+                }
+            }
+        }
+
+        val home = json.toFirebaseSchema().properties?.getValue("home")
+
+        assertEquals(SchemaType.OBJECT, home?.type)
+        assertEquals("Home address", home?.description)
+    }
+
+    @Test
+    fun keepsDescriptionOnNullableRefUnion() {
+        // A nullable nested object is rendered as a `oneOf` of a `$ref` and a null branch, with the
+        // description on the union node.
+        val json = buildJsonObject {
+            put("description", "Optional address")
+            putJsonArray("oneOf") {
+                add(buildJsonObject { put("\$ref", "#/\$defs/Address") })
+                add(buildJsonObject { put("type", "null") })
+            }
+            putJsonObject("\$defs") {
+                putJsonObject("Address") {
+                    put("type", "object")
+                    putJsonObject("properties") {
+                        putJsonObject("city") { put("type", "string") }
+                    }
+                }
+            }
+        }
+
+        val schema = json.toFirebaseSchema()
+
+        assertEquals(SchemaType.OBJECT, schema.type)
+        assertTrue(schema.nullable)
+        assertEquals("Optional address", schema.description)
+        assertEquals(SchemaType.STRING, schema.properties?.getValue("city")?.type)
+    }
 }

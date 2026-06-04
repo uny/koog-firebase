@@ -38,7 +38,9 @@ private fun JsonObject.toFirebaseSchema(
         val target = definitions.resolveRef(ref)
         // A missing or already-visited (recursive) ref degrades to a plain string placeholder.
         if (target == null || ref in visitedRefs) return Schema.string()
-        return target.toFirebaseSchema(definitions, visitedRefs + ref)
+        // Koog attaches the property-level description as a sibling of `$ref`; keep it (it is more
+        // specific than the referenced type's own description).
+        return target.toFirebaseSchema(definitions, visitedRefs + ref).withDescriptionOf(this)
     }
 
     // A `oneOf`/`anyOf` union (a nullable or polymorphic type) is collapsed to its first non-null
@@ -48,12 +50,14 @@ private fun JsonObject.toFirebaseSchema(
         val nullableFromUnion = branches.any { (it[TYPE] as? JsonPrimitive)?.contentOrNull == "null" }
         branches.firstOrNull { (it[TYPE] as? JsonPrimitive)?.contentOrNull != "null" }?.let { primary ->
             val resolved = primary.toFirebaseSchema(definitions, visitedRefs)
-            return if (nullableFromUnion && !resolved.nullable) resolved.copy(nullable = true) else resolved
+            val withNullable = if (nullableFromUnion && !resolved.nullable) resolved.copy(nullable = true) else resolved
+            // The description lives on the union node, not the branches; keep it.
+            return withNullable.withDescriptionOf(this)
         }
     }
 
     val (typeName, nullableFromType) = (this[TYPE]).extractType()
-    val description = (this["description"] as? JsonPrimitive)?.contentOrNull
+    val description = (this[DESCRIPTION] as? JsonPrimitive)?.contentOrNull
     val format = (this["format"] as? JsonPrimitive)?.contentOrNull
     val nullable = nullableFromType || ((this["nullable"] as? JsonPrimitive)?.booleanOrNull == true)
     val enumValues = (this[ENUM] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
@@ -104,6 +108,14 @@ private fun JsonObject.toFirebaseSchema(
 private fun JsonObject.resolveRef(ref: String): JsonObject? =
     this[ref.substringAfterLast('/')] as? JsonObject
 
+/**
+ * Overrides the description with [node]'s own `description`, when present. Used when a schema is
+ * produced by resolving a `$ref` or collapsing a `oneOf`/`anyOf`, so the call-site description
+ * (which Koog emits alongside those keywords) is not lost.
+ */
+private fun Schema.withDescriptionOf(node: JsonObject): Schema =
+    (node[DESCRIPTION] as? JsonPrimitive)?.contentOrNull?.let { copy(description = it) } ?: this
+
 private fun String.toSchemaType(): SchemaType = when (this) {
     "integer" -> SchemaType.INTEGER
     "number" -> SchemaType.NUMBER
@@ -131,3 +143,4 @@ private const val PROPERTIES = "properties"
 private const val ENUM = "enum"
 private const val ONE_OF = "oneOf"
 private const val ANY_OF = "anyOf"
+private const val DESCRIPTION = "description"
