@@ -12,17 +12,15 @@ import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import ai.koog.utils.time.KoogClock
 import dev.ynagai.firebase.ai.FirebaseAI
-import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.GenerationConfig
 import dev.ynagai.firebase.ai.GenerativeModel
-import dev.ynagai.firebase.ai.TextPart
 import dev.ynagai.koog.firebase.mapper.extractSystemInstruction
 import dev.ynagai.koog.firebase.mapper.toFirebase
 import dev.ynagai.koog.firebase.mapper.toFirebaseTools
 import dev.ynagai.koog.firebase.mapper.resolveToolConfig
 import dev.ynagai.koog.firebase.mapper.toGenerationConfig
-import dev.ynagai.koog.firebase.mapper.toJsonObject
 import dev.ynagai.koog.firebase.mapper.toKoog
+import dev.ynagai.koog.firebase.mapper.toStreamFrame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -111,17 +109,7 @@ class FirebaseLLMClient(
                     response.candidates.firstOrNull()?.let { candidate ->
                         candidate.finishReason?.let { lastFinishReason = it.name }
                         candidate.content.parts.forEach { part ->
-                            when (part) {
-                                is TextPart -> emit(StreamFrame.TextDelta(part.text))
-                                is FunctionCallPart -> emit(
-                                    StreamFrame.ToolCallComplete(
-                                        id = part.id,
-                                        name = part.name,
-                                        content = part.args.toJsonObject().toString(),
-                                    )
-                                )
-                                else -> Unit
-                            }
+                            part.toStreamFrame()?.let { emit(it) }
                         }
                     }
                 }
