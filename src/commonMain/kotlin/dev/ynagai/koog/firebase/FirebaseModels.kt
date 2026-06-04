@@ -13,6 +13,7 @@ object FirebaseModels : LLModelDefinitions {
     private val standardCapabilities: List<LLMCapability> = listOf(
         LLMCapability.Temperature,
         LLMCapability.Completion,
+        LLMCapability.MultipleChoices,
         LLMCapability.Tools,
         // Gemini models accept image, video, audio, and document (e.g. PDF) input.
         LLMCapability.Vision.Image,
