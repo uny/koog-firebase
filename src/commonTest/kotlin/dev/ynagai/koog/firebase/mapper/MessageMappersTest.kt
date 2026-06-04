@@ -214,6 +214,48 @@ class MessageMappersTest {
     }
 
     @Test
+    fun binaryVideoAttachmentMapsToInlineDataPart() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Attachment(
+                    source = AttachmentSource.Video(
+                        content = AttachmentContent.Binary.Bytes(byteArrayOf(7, 8, 9)),
+                        format = "mp4",
+                        mimeType = "video/mp4",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        val inline = content.parts.filterIsInstance<InlineDataPart>().single()
+        assertEquals("video/mp4", inline.mimeType)
+        assertContentEquals(byteArrayOf(7, 8, 9), inline.data)
+    }
+
+    @Test
+    fun attachmentOnlyUserMessageProducesNonNullContent() {
+        val message = Message.User(
+            parts = listOf(
+                MessagePart.Attachment(
+                    source = AttachmentSource.Image(
+                        content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                        format = "png",
+                    ),
+                ),
+            ),
+            metaInfo = RequestMetaInfo.Empty,
+        )
+
+        val content = listOf<Message>(message).toFirebase().single()
+
+        assertEquals("user", content.role)
+        assertEquals(1, content.parts.filterIsInstance<InlineDataPart>().size)
+    }
+
+    @Test
     fun userToolResultWithPlainStringIsWrapped() {
         val message = Message.User(
             parts = listOf(

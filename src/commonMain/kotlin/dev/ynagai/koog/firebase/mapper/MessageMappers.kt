@@ -23,9 +23,8 @@ internal fun Message.toFirebase(): Content? = when (this) {
 
 /**
  * Maps message parts to a Firebase [Content]. Firebase rejects a [Content] with no parts, so a
- * message whose parts are all unsupported (e.g. an attachment-only user message or a
- * reasoning-only assistant message) is skipped by returning `null` rather than emitting an
- * invalid empty content.
+ * message whose parts are all unsupported (e.g. a reasoning-only assistant message) is skipped by
+ * returning `null` rather than emitting an invalid empty content.
  */
 private fun List<MessagePart>.toFirebaseContent(role: String): Content? {
     val firebaseParts = mapNotNull { it.toFirebasePart() }
@@ -43,7 +42,11 @@ private fun MessagePart.toFirebasePart(): Part? = when (this) {
 
 /**
  * Maps a Koog attachment to the matching Firebase [Part]: binary data is sent inline, a URL/URI is
- * referenced via [FileDataPart], and plain text (only valid for file attachments) becomes a [TextPart].
+ * referenced via [FileDataPart], and plain text (only produced by file attachments) becomes a [TextPart].
+ *
+ * Note: a URL attachment is forwarded verbatim as the [FileDataPart] URI. Gemini only resolves
+ * specific URI schemes (e.g. a Cloud Storage `gs://` URI); an arbitrary `http(s)` URL is not fetched
+ * server-side and must be downloaded and passed as binary by the caller instead.
  */
 private fun AttachmentSource.toFirebasePart(): Part = when (val attachmentContent = content) {
     is AttachmentContent.Binary -> InlineDataPart(mimeType = mimeType, data = attachmentContent.asBytes())
