@@ -170,5 +170,7 @@ class ToolMappersTest {
     @Test
     fun modesOtherThanNamedHaveNoAllowedFunctionNames() {
         assertNull(LLMParams.ToolChoice.Auto.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
+        assertNull(LLMParams.ToolChoice.None.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
+        assertNull(LLMParams.ToolChoice.Required.toFirebaseToolConfig().functionCallingConfig?.allowedFunctionNames)
     }
 }

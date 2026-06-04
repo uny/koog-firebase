@@ -157,7 +157,7 @@ class FirebaseLLMClient(
         val generationConfig: GenerationConfig? = prompt.params.toGenerationConfig()
         val firebaseTools = tools.toFirebaseTools().ifEmpty { null }
         // Tool choice is only meaningful when tools are available.
-        val toolConfig = firebaseTools?.let { prompt.params.toolChoice?.toFirebaseToolConfig() }
+        val toolConfig = if (firebaseTools != null) prompt.params.toolChoice?.toFirebaseToolConfig() else null
         return firebaseAI.generativeModel(
             modelName = model.id,
             generationConfig = generationConfig,
