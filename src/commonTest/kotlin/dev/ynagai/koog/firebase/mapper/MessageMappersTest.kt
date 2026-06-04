@@ -7,6 +7,7 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.message.ResponseMetaInfo
+import dev.ynagai.firebase.ai.Content
 import dev.ynagai.firebase.ai.FileDataPart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.FunctionResponsePart
@@ -125,22 +126,25 @@ class MessageMappersTest {
         assertEquals("1", response.id)
     }
 
+    /** Maps a user message carrying [source] (optionally preceded by [text]) to its single Firebase [Content]. */
+    private fun attachmentContent(source: AttachmentSource, text: String? = null): Content {
+        val parts = buildList {
+            text?.let { add(MessagePart.Text(it)) }
+            add(MessagePart.Attachment(source = source))
+        }
+        val message = Message.User(parts = parts, metaInfo = RequestMetaInfo.Empty)
+        return listOf<Message>(message).toFirebase().single()
+    }
+
     @Test
     fun binaryImageAttachmentMapsToInlineDataPart() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Text("look at this"),
-                MessagePart.Attachment(
-                    source = AttachmentSource.Image(
-                        content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
-                        format = "png",
-                    ),
-                ),
+        val content = attachmentContent(
+            text = "look at this",
+            source = AttachmentSource.Image(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                format = "png",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         assertEquals("user", content.role)
         assertEquals(listOf("look at this"), content.parts.filterIsInstance<TextPart>().map { it.text })
@@ -151,20 +155,13 @@ class MessageMappersTest {
 
     @Test
     fun urlFileAttachmentMapsToFileDataPart() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Attachment(
-                    source = AttachmentSource.File(
-                        content = AttachmentContent.URL("gs://bucket/doc.pdf"),
-                        format = "pdf",
-                        mimeType = "application/pdf",
-                    ),
-                ),
+        val content = attachmentContent(
+            source = AttachmentSource.File(
+                content = AttachmentContent.URL("gs://bucket/doc.pdf"),
+                format = "pdf",
+                mimeType = "application/pdf",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         val fileData = content.parts.filterIsInstance<FileDataPart>().single()
         assertEquals("application/pdf", fileData.mimeType)
@@ -173,20 +170,13 @@ class MessageMappersTest {
 
     @Test
     fun binaryAudioAttachmentMapsToInlineDataPart() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Attachment(
-                    source = AttachmentSource.Audio(
-                        content = AttachmentContent.Binary.Bytes(byteArrayOf(4, 5, 6)),
-                        format = "mp3",
-                        mimeType = "audio/mpeg",
-                    ),
-                ),
+        val content = attachmentContent(
+            source = AttachmentSource.Audio(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(4, 5, 6)),
+                format = "mp3",
+                mimeType = "audio/mpeg",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         val inline = content.parts.filterIsInstance<InlineDataPart>().single()
         assertEquals("audio/mpeg", inline.mimeType)
@@ -195,40 +185,26 @@ class MessageMappersTest {
 
     @Test
     fun plainTextFileAttachmentMapsToTextPart() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Attachment(
-                    source = AttachmentSource.File(
-                        content = AttachmentContent.PlainText("file contents"),
-                        format = "txt",
-                        mimeType = "text/plain",
-                    ),
-                ),
+        val content = attachmentContent(
+            source = AttachmentSource.File(
+                content = AttachmentContent.PlainText("file contents"),
+                format = "txt",
+                mimeType = "text/plain",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         assertEquals(listOf("file contents"), content.parts.filterIsInstance<TextPart>().map { it.text })
     }
 
     @Test
     fun binaryVideoAttachmentMapsToInlineDataPart() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Attachment(
-                    source = AttachmentSource.Video(
-                        content = AttachmentContent.Binary.Bytes(byteArrayOf(7, 8, 9)),
-                        format = "mp4",
-                        mimeType = "video/mp4",
-                    ),
-                ),
+        val content = attachmentContent(
+            source = AttachmentSource.Video(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(7, 8, 9)),
+                format = "mp4",
+                mimeType = "video/mp4",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         val inline = content.parts.filterIsInstance<InlineDataPart>().single()
         assertEquals("video/mp4", inline.mimeType)
@@ -237,19 +213,12 @@ class MessageMappersTest {
 
     @Test
     fun attachmentOnlyUserMessageProducesNonNullContent() {
-        val message = Message.User(
-            parts = listOf(
-                MessagePart.Attachment(
-                    source = AttachmentSource.Image(
-                        content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
-                        format = "png",
-                    ),
-                ),
+        val content = attachmentContent(
+            source = AttachmentSource.Image(
+                content = AttachmentContent.Binary.Bytes(byteArrayOf(1, 2, 3)),
+                format = "png",
             ),
-            metaInfo = RequestMetaInfo.Empty,
         )
-
-        val content = listOf<Message>(message).toFirebase().single()
 
         assertEquals("user", content.role)
         assertEquals(1, content.parts.filterIsInstance<InlineDataPart>().size)
