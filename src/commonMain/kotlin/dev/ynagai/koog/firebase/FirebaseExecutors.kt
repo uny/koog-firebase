@@ -15,7 +15,7 @@ import dev.ynagai.firebase.app
  * val agent = AIAgent(
  *     promptExecutor = simpleFirebaseExecutor(),
  *     systemPrompt = "You are a helpful assistant.",
- *     llmModel = FirebaseModels.Gemini3_6Flash
+ *     llmModel = FirebaseModels.Gemini3_7Flash
  * )
  * val result = agent.run("Hello!")
  * ```

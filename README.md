@@ -23,7 +23,7 @@ Add to your `libs.versions.toml`:
 
 ```toml
 [versions]
-koog-firebase = "0.6.0"
+koog-firebase = "0.7.0"
 
 [libraries]
 koog-firebase = { module = "dev.ynagai.koog:koog-firebase", version.ref = "koog-firebase" }
@@ -41,7 +41,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog:koog-firebase:0.6.0")
+    implementation("dev.ynagai.koog:koog-firebase:0.7.0")
 }
 ```
 
@@ -57,7 +57,7 @@ import dev.ynagai.koog.firebase.simpleFirebaseExecutor
 val agent = AIAgent(
     promptExecutor = simpleFirebaseExecutor(),
     systemPrompt = "You are a helpful assistant.",
-    llmModel = FirebaseModels.Gemini3_6Flash
+    llmModel = FirebaseModels.Gemini3_7Flash
 )
 
 val result = agent.run("Hello!")
@@ -83,9 +83,10 @@ val executor = simpleFirebaseExecutor(
 
 | Model | Description |
 |-------|-------------|
-| `FirebaseModels.Gemini3_6Flash` | Latest stable Gemini 3.x Flash model |
+| `FirebaseModels.Gemini3_7Flash` | Latest stable Gemini 3.x Flash model |
+| `FirebaseModels.Gemini3_6Flash` | Previous stable Gemini 3.x Flash model |
 | `FirebaseModels.Gemini3FlashPreview` | Preview version of the Gemini 3.x Flash line |
-| `FirebaseModels.Gemini3_5Flash` | Previous stable Gemini 3.x Flash model |
+| `FirebaseModels.Gemini3_5Flash` | Older stable Gemini 3.x Flash model |
 | `FirebaseModels.Gemini3_5FlashLite` | High-volume, cost-sensitive workhorse model |
 | `FirebaseModels.Gemini3_1Pro` | Advanced reasoning (preview) |
 | `FirebaseModels.Gemini3_1FlashLite` | Ultra-fast, budget-friendly |
