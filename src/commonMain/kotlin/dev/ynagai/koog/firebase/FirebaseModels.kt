@@ -27,12 +27,53 @@ object FirebaseModels : LLModelDefinitions {
     )
 
     /**
-     * Gemini 3.5 Flash - Frontier-class Flash model.
+     * Gemini 3.6 Flash - Latest stable Gemini 3.x Flash model.
+     *
+     * `temperature` is deprecated and ignored by this model per
+     * https://firebase.google.com/docs/ai-logic/model-parameters, so it is excluded from
+     * [standardCapabilities] here.
+     */
+    val Gemini3_6Flash = LLModel(
+        provider = FirebaseLLMProvider,
+        id = "gemini-3.6-flash",
+        capabilities = standardCapabilities - LLMCapability.Temperature + LLMCapability.Speculation,
+        contextLength = 1_048_576,
+        maxOutputTokens = 65_536,
+    )
+
+    /**
+     * Gemini 3 Flash (preview) - Preview version of the Gemini 3.x Flash line.
+     */
+    val Gemini3FlashPreview = LLModel(
+        provider = FirebaseLLMProvider,
+        id = "gemini-3-flash-preview",
+        capabilities = standardCapabilities + LLMCapability.Speculation,
+        contextLength = 1_048_576,
+        maxOutputTokens = 65_536,
+    )
+
+    /**
+     * Gemini 3.5 Flash - Previous stable Gemini 3.x Flash model.
      */
     val Gemini3_5Flash = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.5-flash",
         capabilities = standardCapabilities + LLMCapability.Speculation,
+        contextLength = 1_048_576,
+        maxOutputTokens = 65_536,
+    )
+
+    /**
+     * Gemini 3.5 Flash-Lite - High-volume, cost-sensitive workhorse model.
+     *
+     * `temperature` is deprecated and ignored by this model per
+     * https://firebase.google.com/docs/ai-logic/model-parameters, so it is excluded from
+     * [standardCapabilities] here.
+     */
+    val Gemini3_5FlashLite = LLModel(
+        provider = FirebaseLLMProvider,
+        id = "gemini-3.5-flash-lite",
+        capabilities = standardCapabilities - LLMCapability.Temperature,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -62,6 +103,7 @@ object FirebaseModels : LLModelDefinitions {
     /**
      * Gemini 2.5 Pro - High-capability model with speculation support.
      */
+    @Deprecated("Gemini 2.5 models are scheduled to retire in October 2026. Migrate to a Gemini 3.x model.")
     val Gemini2_5Pro = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-pro",
@@ -73,6 +115,7 @@ object FirebaseModels : LLModelDefinitions {
     /**
      * Gemini 2.5 Flash - Fast and efficient model with speculation support.
      */
+    @Deprecated("Gemini 2.5 models are scheduled to retire in October 2026. Migrate to a Gemini 3.x model.")
     val Gemini2_5Flash = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-flash",
@@ -84,6 +127,7 @@ object FirebaseModels : LLModelDefinitions {
     /**
      * Gemini 2.5 Flash-Lite - Budget-friendly Flash variant.
      */
+    @Deprecated("Gemini 2.5 models are scheduled to retire in October 2026. Migrate to a Gemini 3.x model.")
     val Gemini2_5FlashLite = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-2.5-flash-lite",
@@ -92,8 +136,12 @@ object FirebaseModels : LLModelDefinitions {
         maxOutputTokens = 65_536,
     )
 
+    @Suppress("DEPRECATION")
     private val supportedModels: List<LLModel> = listOf(
+        Gemini3_6Flash,
+        Gemini3FlashPreview,
         Gemini3_5Flash,
+        Gemini3_5FlashLite,
         Gemini3_1Pro,
         Gemini3_1FlashLite,
         Gemini2_5Pro,
