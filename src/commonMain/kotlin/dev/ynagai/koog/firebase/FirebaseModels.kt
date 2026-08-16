@@ -28,11 +28,15 @@ object FirebaseModels : LLModelDefinitions {
 
     /**
      * Gemini 3.6 Flash - Latest stable Gemini 3.x Flash model.
+     *
+     * `temperature` is deprecated and ignored by this model per
+     * https://firebase.google.com/docs/ai-logic/model-parameters, so it is excluded from
+     * [standardCapabilities] here.
      */
     val Gemini3_6Flash = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.6-flash",
-        capabilities = standardCapabilities + LLMCapability.Speculation,
+        capabilities = standardCapabilities - LLMCapability.Temperature + LLMCapability.Speculation,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
@@ -61,11 +65,15 @@ object FirebaseModels : LLModelDefinitions {
 
     /**
      * Gemini 3.5 Flash-Lite - High-volume, cost-sensitive workhorse model.
+     *
+     * `temperature` is deprecated and ignored by this model per
+     * https://firebase.google.com/docs/ai-logic/model-parameters, so it is excluded from
+     * [standardCapabilities] here.
      */
     val Gemini3_5FlashLite = LLModel(
         provider = FirebaseLLMProvider,
         id = "gemini-3.5-flash-lite",
-        capabilities = standardCapabilities,
+        capabilities = standardCapabilities - LLMCapability.Temperature,
         contextLength = 1_048_576,
         maxOutputTokens = 65_536,
     )
