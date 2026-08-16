@@ -57,7 +57,7 @@ import dev.ynagai.koog.firebase.simpleFirebaseExecutor
 val agent = AIAgent(
     promptExecutor = simpleFirebaseExecutor(),
     systemPrompt = "You are a helpful assistant.",
-    llmModel = FirebaseModels.Gemini2_5Flash
+    llmModel = FirebaseModels.Gemini3_6Flash
 )
 
 val result = agent.run("Hello!")
@@ -81,12 +81,15 @@ val executor = simpleFirebaseExecutor(
 
 | Model | Description |
 |-------|-------------|
-| `FirebaseModels.Gemini3_5Flash` | Frontier-class Flash model |
+| `FirebaseModels.Gemini3_6Flash` | Latest stable Gemini 3.x Flash model |
+| `FirebaseModels.Gemini3FlashPreview` | Preview version of the Gemini 3.x Flash line |
+| `FirebaseModels.Gemini3_5Flash` | Previous stable Gemini 3.x Flash model |
+| `FirebaseModels.Gemini3_5FlashLite` | High-volume, cost-sensitive workhorse model |
 | `FirebaseModels.Gemini3_1Pro` | Advanced reasoning (preview) |
 | `FirebaseModels.Gemini3_1FlashLite` | Ultra-fast, budget-friendly |
-| `FirebaseModels.Gemini2_5Pro` | High-capability with speculation support |
-| `FirebaseModels.Gemini2_5Flash` | Fast and efficient with speculation support |
-| `FirebaseModels.Gemini2_5FlashLite` | Budget-friendly Flash variant |
+| `FirebaseModels.Gemini2_5Pro` (deprecated) | High-capability with speculation support — retires October 2026 |
+| `FirebaseModels.Gemini2_5Flash` (deprecated) | Fast and efficient with speculation support — retires October 2026 |
+| `FirebaseModels.Gemini2_5FlashLite` (deprecated) | Budget-friendly Flash variant — retires October 2026 |
 
 ## Requirements
 
