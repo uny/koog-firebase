@@ -70,10 +70,12 @@ import dev.ynagai.firebase.Firebase
 import dev.ynagai.firebase.ai.GenerativeBackend
 import dev.ynagai.koog.firebase.simpleFirebaseExecutor
 
-// Use Vertex AI backend
+// Use Vertex AI backend.
+// Gemini 3.x models are only available in the "global" location; vertexAI()
+// defaults to "us-central1", which will 404 for those models.
 val executor = simpleFirebaseExecutor(
     app = Firebase.app,
-    backend = GenerativeBackend.vertexAI()
+    backend = GenerativeBackend.vertexAI("global")
 )
 ```
 
