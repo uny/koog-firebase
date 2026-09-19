@@ -54,11 +54,11 @@ internal fun resolveTools(tools: List<ToolDescriptor>, params: LLMParams): List<
 /**
  * Resolves the Firebase [ToolConfig] for a request.
  *
- * The function-calling config is only meaningful when function declarations are present, so it is
- * gated on a [Tool.FunctionDeclarations] entry in [tools] — not on the list being non-null —
- * because Firebase rejects a forcing mode (e.g. `ANY`) when only built-in tools such as Google
- * Search are declared. [retrievalConfig] is passed through independently. Returns `null` when
- * there is nothing to send.
+ * Each config is gated on the tool it configures being present in [tools] — not on the list being
+ * non-null: the function-calling config needs a [Tool.FunctionDeclarations] entry because Firebase
+ * rejects a forcing mode (e.g. `ANY`) when only built-in tools such as Google Search are declared,
+ * and [retrievalConfig] (which may carry the user's location) needs [Tool.GoogleMaps] so it is not
+ * sent on requests that do not use Maps grounding. Returns `null` when there is nothing to send.
  */
 internal fun resolveToolConfig(
     tools: List<Tool>?,
@@ -66,9 +66,11 @@ internal fun resolveToolConfig(
     retrievalConfig: RetrievalConfig? = null,
 ): ToolConfig? {
     val hasFunctions = tools.orEmpty().any { it is Tool.FunctionDeclarations }
+    val hasMaps = tools.orEmpty().any { it is Tool.GoogleMaps }
     val functionCallingConfig = if (hasFunctions) toolChoice?.toFirebaseToolConfig()?.functionCallingConfig else null
-    if (functionCallingConfig == null && retrievalConfig == null) return null
-    return ToolConfig(functionCallingConfig = functionCallingConfig, retrievalConfig = retrievalConfig)
+    val mapsRetrievalConfig = if (hasMaps) retrievalConfig else null
+    if (functionCallingConfig == null && mapsRetrievalConfig == null) return null
+    return ToolConfig(functionCallingConfig = functionCallingConfig, retrievalConfig = mapsRetrievalConfig)
 }
 
 /** Converts a single Koog [ToolDescriptor] into a Firebase [FunctionDeclaration]. */

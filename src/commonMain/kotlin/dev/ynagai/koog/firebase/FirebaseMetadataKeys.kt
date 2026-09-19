@@ -7,7 +7,7 @@ package dev.ynagai.koog.firebase
  *
  * The values are JSON objects mirroring the Gemini REST field names, e.g.:
  * ```kotlin
- * val grounding = response.metaInfo.metadata[FirebaseMetadataKeys.GROUNDING_METADATA]?.jsonObject
+ * val grounding = response.metaInfo.metadata?.get(FirebaseMetadataKeys.GROUNDING_METADATA)?.jsonObject
  * val sources = grounding?.get("groundingChunks")?.jsonArray
  * val searchSuggestions = grounding?.get("searchEntryPoint")?.jsonObject?.get("renderedContent")
  * ```

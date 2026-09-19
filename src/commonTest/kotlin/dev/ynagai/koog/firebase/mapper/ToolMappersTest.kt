@@ -8,6 +8,7 @@ import dev.ynagai.firebase.ai.FunctionCallingMode
 import dev.ynagai.firebase.ai.LatLng
 import dev.ynagai.firebase.ai.RetrievalConfig
 import dev.ynagai.firebase.ai.SchemaType
+import dev.ynagai.firebase.ai.ThinkingConfig
 import dev.ynagai.firebase.ai.Tool
 import dev.ynagai.koog.firebase.FirebaseLLMParams
 import kotlin.test.Test
@@ -205,8 +206,8 @@ class ToolMappersTest {
 
     @Test
     fun resolveToolsIsNullWithoutFunctionOrBuiltInTools() {
-        assertNull(resolveToolsForTest(emptyList(), LLMParams()))
-        assertNull(resolveToolsForTest(emptyList(), FirebaseLLMParams()))
+        assertNull(resolveTools(emptyList(), LLMParams()))
+        assertNull(resolveTools(emptyList(), FirebaseLLMParams()))
     }
 
     @Test
@@ -214,7 +215,7 @@ class ToolMappersTest {
         val params = FirebaseLLMParams(builtInTools = listOf(Tool.googleSearch(), Tool.urlContext()))
         val descriptors = listOf(ToolDescriptor("get_weather", "Get the weather"))
 
-        val tools = resolveToolsForTest(descriptors, params)
+        val tools = resolveTools(descriptors, params)
 
         assertEquals(3, tools?.size)
         assertTrue(tools?.get(0) is Tool.FunctionDeclarations)
@@ -226,12 +227,12 @@ class ToolMappersTest {
     fun resolveToolsPassesBuiltInToolsWithoutFunctionDeclarations() {
         val params = FirebaseLLMParams(builtInTools = listOf(Tool.googleSearch()))
 
-        assertEquals(listOf(Tool.GoogleSearch), resolveToolsForTest(emptyList(), params))
+        assertEquals(listOf(Tool.GoogleSearch), resolveTools(emptyList(), params))
     }
 
     @Test
     fun plainLLMParamsCarryNoBuiltInTools() {
-        val tools = resolveToolsForTest(listOf(ToolDescriptor("get_weather", "Get the weather")), LLMParams())
+        val tools = resolveTools(listOf(ToolDescriptor("get_weather", "Get the weather")), LLMParams())
 
         assertEquals(1, tools?.size)
         assertTrue(tools?.single() is Tool.FunctionDeclarations)
@@ -246,7 +247,6 @@ class ToolMappersTest {
 
     @Test
     fun resolveToolConfigIgnoresChoiceWhenOnlyBuiltInToolsArePresent() {
-        // Firebase rejects a forcing mode without function declarations, so no config is sent.
         assertNull(resolveToolConfig(listOf(Tool.googleSearch()), LLMParams.ToolChoice.Required))
     }
 
@@ -270,6 +270,37 @@ class ToolMappersTest {
         assertEquals(retrievalConfig, config?.retrievalConfig)
     }
 
-    private fun resolveToolsForTest(descriptors: List<ToolDescriptor>, params: LLMParams): List<Tool>? =
-        resolveTools(descriptors, params)
+    @Test
+    fun resolveToolConfigDropsRetrievalConfigWithoutGoogleMaps() {
+        val retrievalConfig = RetrievalConfig(latLng = LatLng(35.68, 139.76))
+
+        assertNull(resolveToolConfig(null, null, retrievalConfig))
+        assertNull(resolveToolConfig(listOf(Tool.googleSearch()), null, retrievalConfig))
+        val withFunctions = resolveToolConfig(
+            listOf(ToolDescriptor("get_weather", "Get the weather")).toFirebaseTools(),
+            LLMParams.ToolChoice.Auto,
+            retrievalConfig,
+        )
+        assertEquals(FunctionCallingMode.AUTO, withFunctions?.functionCallingConfig?.mode)
+        assertNull(withFunctions?.retrievalConfig)
+    }
+
+    @Test
+    fun copyPreservesFirebaseSpecificParams() {
+        val params = FirebaseLLMParams(
+            temperature = 0.2,
+            thinkingConfig = ThinkingConfig(thinkingBudget = 128),
+            builtInTools = listOf(Tool.googleSearch()),
+            retrievalConfig = RetrievalConfig(languageCode = "ja"),
+        )
+
+        val copied = params.copy(toolChoice = LLMParams.ToolChoice.Required)
+
+        assertEquals(0.2, copied.temperature)
+        assertEquals(LLMParams.ToolChoice.Required, copied.toolChoice)
+        assertEquals(params.thinkingConfig, copied.thinkingConfig)
+        assertEquals(params.builtInTools, copied.builtInTools)
+        assertEquals(params.retrievalConfig, copied.retrievalConfig)
+        assertEquals(listOf(Tool.GoogleSearch), resolveTools(emptyList(), copied))
+    }
 }

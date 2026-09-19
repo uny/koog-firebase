@@ -10,6 +10,7 @@ import dev.ynagai.firebase.ai.Content
 import dev.ynagai.firebase.ai.ExecutableCodePart
 import dev.ynagai.firebase.ai.FunctionCallPart
 import dev.ynagai.firebase.ai.GenerateContentResponse
+import dev.ynagai.firebase.ai.GoogleMapsGroundingChunk
 import dev.ynagai.firebase.ai.GroundingChunk
 import dev.ynagai.firebase.ai.GroundingMetadata
 import dev.ynagai.firebase.ai.GroundingSupport
@@ -165,6 +166,7 @@ class ResponseMappersTest {
             searchEntryPoint = SearchEntryPoint(renderedContent = "<div>suggestions</div>"),
             groundingChunks = listOf(
                 GroundingChunk(web = WebGroundingChunk(uri = "https://example.com", title = "Example", domain = "example.com")),
+                GroundingChunk(maps = GoogleMapsGroundingChunk(uri = "https://maps.example", title = "Cafe", placeId = "places/abc")),
             ),
             groundingSupports = listOf(
                 GroundingSupport(segment = Segment(0, 0, 5, "Sunny"), groundingChunkIndices = listOf(0)),
@@ -185,11 +187,22 @@ class ResponseMappersTest {
             "<div>suggestions</div>",
             json.getValue("searchEntryPoint").jsonObject.getValue("renderedContent").jsonPrimitive.content,
         )
-        val web = json.getValue("groundingChunks").jsonArray.single().jsonObject.getValue("web").jsonObject
+        val chunks = json.getValue("groundingChunks").jsonArray
+        val web = chunks[0].jsonObject.getValue("web").jsonObject
         assertEquals("https://example.com", web.getValue("uri").jsonPrimitive.content)
+        assertEquals("Example", web.getValue("title").jsonPrimitive.content)
         assertEquals("example.com", web.getValue("domain").jsonPrimitive.content)
+        assertNull(chunks[0].jsonObject["maps"])
+        val maps = chunks[1].jsonObject.getValue("maps").jsonObject
+        assertEquals("places/abc", maps.getValue("placeId").jsonPrimitive.content)
+        assertEquals("Cafe", maps.getValue("title").jsonPrimitive.content)
+        assertNull(chunks[1].jsonObject["web"])
         val support = json.getValue("groundingSupports").jsonArray.single().jsonObject
-        assertEquals("Sunny", support.getValue("segment").jsonObject.getValue("text").jsonPrimitive.content)
+        val segment = support.getValue("segment").jsonObject
+        assertEquals("Sunny", segment.getValue("text").jsonPrimitive.content)
+        assertEquals(0, segment.getValue("partIndex").jsonPrimitive.content.toInt())
+        assertEquals(0, segment.getValue("startIndex").jsonPrimitive.content.toInt())
+        assertEquals(5, segment.getValue("endIndex").jsonPrimitive.content.toInt())
         assertEquals(0, support.getValue("groundingChunkIndices").jsonArray.single().jsonPrimitive.content.toInt())
         assertNull(assistants[0].metaInfo.metadata!![FirebaseMetadataKeys.URL_CONTEXT_METADATA])
         assertNull(assistants[1].metaInfo.metadata)
@@ -202,7 +215,10 @@ class ResponseMappersTest {
                 Candidate(
                     content = Content(role = "model", parts = listOf(TextPart("summary"))),
                     urlContextMetadata = UrlContextMetadata(
-                        urlMetadata = listOf(UrlMetadata("https://example.com/doc", UrlRetrievalStatus.SUCCESS)),
+                        urlMetadata = listOf(
+                            UrlMetadata("https://example.com/doc", UrlRetrievalStatus.SUCCESS),
+                            UrlMetadata(retrievedUrl = null, retrievalStatus = UrlRetrievalStatus.ERROR),
+                        ),
                     ),
                 ),
             ),
@@ -210,10 +226,12 @@ class ResponseMappersTest {
 
         val metadata = response.toKoog(KoogClock.System).single().metaInfo.metadata!!
 
-        val entry = metadata.getValue(FirebaseMetadataKeys.URL_CONTEXT_METADATA).jsonObject
-            .getValue("urlMetadata").jsonArray.single().jsonObject
-        assertEquals("https://example.com/doc", entry.getValue("retrievedUrl").jsonPrimitive.content)
-        assertEquals("SUCCESS", entry.getValue("urlRetrievalStatus").jsonPrimitive.content)
+        val entries = metadata.getValue(FirebaseMetadataKeys.URL_CONTEXT_METADATA).jsonObject
+            .getValue("urlMetadata").jsonArray
+        assertEquals("https://example.com/doc", entries[0].jsonObject.getValue("retrievedUrl").jsonPrimitive.content)
+        assertEquals("SUCCESS", entries[0].jsonObject.getValue("urlRetrievalStatus").jsonPrimitive.content)
+        assertNull(entries[1].jsonObject["retrievedUrl"])
+        assertEquals("ERROR", entries[1].jsonObject.getValue("urlRetrievalStatus").jsonPrimitive.content)
     }
 
     @Test
@@ -241,10 +259,41 @@ class ResponseMappersTest {
         val parts = response.toKoog(KoogClock.System).single().parts
 
         assertEquals(
-            listOf("```python\nprint(1)\n```", "1\n"),
+            listOf("```python\nprint(1)\n```\n", "1\n"),
             parts.filterIsInstance<MessagePart.Text>().map { it.text },
         )
-        assertEquals(listOf("```python\nx = 2\n```"), parts.filterIsInstance<MessagePart.Reasoning>().flatMap { it.content })
+        assertEquals(listOf("```python\nx = 2\n```\n"), parts.filterIsInstance<MessagePart.Reasoning>().flatMap { it.content })
+    }
+
+    @Test
+    fun marksFailedCodeExecutionAndDropsEmptySuccessOutput() {
+        val response = GenerateContentResponse(
+            candidates = listOf(
+                Candidate(
+                    content = Content(
+                        role = "model",
+                        parts = listOf(
+                            CodeExecutionResultPart(outcome = CodeExecutionOutcome.OK, output = ""),
+                            CodeExecutionResultPart(outcome = CodeExecutionOutcome.FAILED, output = "Traceback"),
+                            CodeExecutionResultPart(outcome = CodeExecutionOutcome.DEADLINE_EXCEEDED, output = ""),
+                            CodeExecutionResultPart(outcome = CodeExecutionOutcome.OK, output = "done", isThought = true),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val parts = response.toKoog(KoogClock.System).single().parts
+
+        assertEquals(
+            listOf("[code execution FAILED]\nTraceback", "[code execution DEADLINE_EXCEEDED]"),
+            parts.filterIsInstance<MessagePart.Text>().map { it.text },
+        )
+        assertEquals(listOf("done"), parts.filterIsInstance<MessagePart.Reasoning>().flatMap { it.content })
+        assertNull(CodeExecutionResultPart(outcome = CodeExecutionOutcome.OK, output = "").toStreamFrame())
+        assertIs<StreamFrame.ReasoningDelta>(
+            CodeExecutionResultPart(outcome = CodeExecutionOutcome.OK, output = "x", isThought = true).toStreamFrame(),
+        )
     }
 
     @Test
@@ -252,13 +301,16 @@ class ResponseMappersTest {
         val frame = assertIs<StreamFrame.TextDelta>(
             ExecutableCodePart(language = "LANGUAGE_UNSPECIFIED", code = "x").toStreamFrame(),
         )
-        assertEquals("```\nx\n```", frame.text)
+        assertEquals("```\nx\n```\n", frame.text)
     }
 
     @Test
     fun streamsCodeExecutionPartsAsTextDeltas() {
         val code = assertIs<StreamFrame.TextDelta>(ExecutableCodePart(language = "PYTHON", code = "print(1)").toStreamFrame())
-        assertEquals("```python\nprint(1)\n```", code.text)
+        assertEquals("```python\nprint(1)\n```\n", code.text)
+        assertIs<StreamFrame.ReasoningDelta>(
+            ExecutableCodePart(language = "PYTHON", code = "y", isThought = true).toStreamFrame(),
+        )
 
         val result = assertIs<StreamFrame.TextDelta>(
             CodeExecutionResultPart(outcome = CodeExecutionOutcome.OK, output = "1").toStreamFrame(),

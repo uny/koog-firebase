@@ -98,8 +98,8 @@ class FirebaseLLMClient(
 
             var lastMetaInfo: ResponseMetaInfo? = null
             var lastFinishReason: String? = null
-            // Built-in-tool metadata usually arrives on the final chunk; keep the latest seen so it
-            // can be attached to the End frame.
+            // Built-in-tool metadata is per candidate, not per delta: the last non-null value seen
+            // wins and is attached to the End frame.
             var lastGroundingMetadata: GroundingMetadata? = null
             var lastUrlContextMetadata: UrlContextMetadata? = null
 

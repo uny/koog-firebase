@@ -13,17 +13,19 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-/**
- * Serializes the built-in-tool metadata of a [Candidate] (Google Search grounding, URL context)
- * into the [JsonObject] carried by Koog's `ResponseMetaInfo.metadata`. Returns `null` when the
- * candidate has neither so callers can keep the default empty metadata.
- *
- * The Firebase SDK types are not `@Serializable`, so the JSON is built by hand. Field names mirror
- * the Gemini REST API; enum values use the SDK's short names (e.g. `SUCCESS`).
- */
 internal fun Candidate.toolMetadataJson(): JsonObject? =
     toolMetadataJson(groundingMetadata, urlContextMetadata)
 
+/**
+ * Serializes built-in-tool metadata (Google Search grounding, URL context) into the [JsonObject]
+ * carried by Koog's `ResponseMetaInfo.metadata`. Returns `null` when both are absent so callers
+ * can keep the default empty metadata.
+ *
+ * The Firebase SDK types are not `@Serializable`, so the JSON is built by hand. Field names mirror
+ * the Gemini REST API; enum values use the SDK's short names (e.g. `SUCCESS`). Note that
+ * `groundingSupports[].segment.partIndex` indexes the Firebase candidate's parts, not the mapped
+ * Koog message parts (unsupported parts are dropped during mapping).
+ */
 internal fun toolMetadataJson(
     groundingMetadata: GroundingMetadata?,
     urlContextMetadata: UrlContextMetadata?,
