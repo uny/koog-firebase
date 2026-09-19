@@ -14,6 +14,8 @@ Firebase Vertex AI integration for the [Koog Agent Framework](https://github.com
 - Pre-configured Gemini model definitions
 - Streaming response support
 - Function calling (tool) support
+- Thinking / reasoning configuration
+- Built-in Gemini tools: Google Search grounding, URL context, code execution, Google Maps grounding
 
 ## Installation
 
@@ -23,7 +25,7 @@ Add to your `libs.versions.toml`:
 
 ```toml
 [versions]
-koog-firebase = "0.7.0"
+koog-firebase = "0.8.0"
 
 [libraries]
 koog-firebase = { module = "dev.ynagai.koog:koog-firebase", version.ref = "koog-firebase" }
@@ -41,7 +43,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("dev.ynagai.koog:koog-firebase:0.7.0")
+    implementation("dev.ynagai.koog:koog-firebase:0.8.0")
 }
 ```
 
@@ -78,6 +80,51 @@ val executor = simpleFirebaseExecutor(
     backend = GenerativeBackend.vertexAI("global")
 )
 ```
+
+### Built-in Tools (Google Search, URL context, ...)
+
+Gemini can run some tools server-side without a Koog tool round-trip. Request them via
+`FirebaseLLMParams.builtInTools` using the Firebase SDK's `Tool` factories:
+
+| Firebase tool | What it does |
+|---------------|--------------|
+| `Tool.googleSearch()` | Grounds the answer with Google Search results (web search) |
+| `Tool.urlContext()` | Fetches URLs mentioned in the prompt and uses their content (web fetch) |
+| `Tool.codeExecution()` | Lets the model write and run code; code and output are surfaced as text parts |
+| `Tool.googleMaps()` | Grounds the answer with Google Maps; pass `retrievalConfig` for location |
+
+```kotlin
+import ai.koog.prompt.dsl.prompt
+import dev.ynagai.firebase.ai.Tool
+import dev.ynagai.koog.firebase.FirebaseLLMParams
+import dev.ynagai.koog.firebase.FirebaseMetadataKeys
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+val prompt = prompt("search", params = FirebaseLLMParams(
+    builtInTools = listOf(Tool.googleSearch(), Tool.urlContext()),
+)) {
+    user("What changed in the latest Kotlin release? See https://kotlinlang.org/docs/whatsnew.html")
+}
+
+val response = executor.execute(prompt, FirebaseModels.Gemini3_7Flash).first()
+
+// Grounding sources and Search Suggestions are exposed in the response metadata.
+val grounding = response.metaInfo.metadata?.get(FirebaseMetadataKeys.GROUNDING_METADATA)?.jsonObject
+val sources = grounding?.get("groundingChunks")?.jsonArray
+    ?.mapNotNull { it.jsonObject["web"]?.jsonObject?.get("uri")?.jsonPrimitive?.content }
+val searchSuggestionsHtml = grounding?.get("searchEntryPoint")?.jsonObject
+    ?.get("renderedContent")?.jsonPrimitive?.content
+```
+
+Built-in tools can be combined with regular Koog tools; `toolChoice` only affects the Koog
+function tools. When streaming, the same metadata is attached to the final `StreamFrame.End`
+frame's `metaInfo`.
+
+> **Note:** When using Google Search grounding, Google's terms require your app to display the
+> Search Suggestions from `searchEntryPoint.renderedContent`. See the
+> [Firebase AI Logic grounding docs](https://firebase.google.com/docs/ai-logic/grounding-google-search).
 
 ### Available Models
 

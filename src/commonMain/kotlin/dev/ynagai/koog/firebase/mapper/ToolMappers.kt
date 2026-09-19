@@ -6,9 +6,11 @@ import ai.koog.prompt.params.LLMParams
 import dev.ynagai.firebase.ai.FunctionCallingConfig
 import dev.ynagai.firebase.ai.FunctionCallingMode
 import dev.ynagai.firebase.ai.FunctionDeclaration
+import dev.ynagai.firebase.ai.RetrievalConfig
 import dev.ynagai.firebase.ai.Schema
 import dev.ynagai.firebase.ai.Tool
 import dev.ynagai.firebase.ai.ToolConfig
+import dev.ynagai.koog.firebase.FirebaseLLMParams
 
 /**
  * Converts Koog [ToolDescriptor]s into the single Firebase [Tool] that carries their
@@ -40,12 +42,34 @@ internal fun LLMParams.ToolChoice.toFirebaseToolConfig(): ToolConfig = ToolConfi
 )
 
 /**
- * Resolves the Firebase [ToolConfig] for a request. Tool choice is only meaningful when tools are
- * available, so this returns `null` when [tools] is `null` — even if a [toolChoice] is set —
- * because Firebase rejects a forcing mode (e.g. `ANY`) when no functions are declared.
+ * Builds the full Firebase tool list for a request: the Koog function tools (if any) followed by
+ * the server-side built-in tools requested via [FirebaseLLMParams.builtInTools]. Returns `null`
+ * when neither is present so the SDK omits the field entirely.
  */
-internal fun resolveToolConfig(tools: List<Tool>?, toolChoice: LLMParams.ToolChoice?): ToolConfig? =
-    if (tools != null) toolChoice?.toFirebaseToolConfig() else null
+internal fun resolveTools(tools: List<ToolDescriptor>, params: LLMParams): List<Tool>? {
+    val builtInTools = (params as? FirebaseLLMParams)?.builtInTools.orEmpty()
+    return (tools.toFirebaseTools() + builtInTools).ifEmpty { null }
+}
+
+/**
+ * Resolves the Firebase [ToolConfig] for a request.
+ *
+ * The function-calling config is only meaningful when function declarations are present, so it is
+ * gated on a [Tool.FunctionDeclarations] entry in [tools] — not on the list being non-null —
+ * because Firebase rejects a forcing mode (e.g. `ANY`) when only built-in tools such as Google
+ * Search are declared. [retrievalConfig] is passed through independently. Returns `null` when
+ * there is nothing to send.
+ */
+internal fun resolveToolConfig(
+    tools: List<Tool>?,
+    toolChoice: LLMParams.ToolChoice?,
+    retrievalConfig: RetrievalConfig? = null,
+): ToolConfig? {
+    val hasFunctions = tools.orEmpty().any { it is Tool.FunctionDeclarations }
+    val functionCallingConfig = if (hasFunctions) toolChoice?.toFirebaseToolConfig()?.functionCallingConfig else null
+    if (functionCallingConfig == null && retrievalConfig == null) return null
+    return ToolConfig(functionCallingConfig = functionCallingConfig, retrievalConfig = retrievalConfig)
+}
 
 /** Converts a single Koog [ToolDescriptor] into a Firebase [FunctionDeclaration]. */
 internal fun ToolDescriptor.toFunctionDeclaration(): FunctionDeclaration {
