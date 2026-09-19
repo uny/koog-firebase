@@ -62,4 +62,32 @@ class FirebaseLLMParams(
             "builtInTools must not contain Tool.FunctionDeclarations; register Koog tools via the tool registry instead."
         }
     }
+
+    /**
+     * Koog rewrites params through [LLMParams.copy] (e.g. `Prompt.withUpdatedParams`, the agent
+     * session's `setToolChoice*`), so the override keeps the Firebase-specific fields instead of
+     * degrading to a plain [LLMParams] and silently dropping them.
+     */
+    override fun copy(
+        temperature: Double?,
+        maxTokens: Int?,
+        numberOfChoices: Int?,
+        speculation: String?,
+        schema: LLMParams.Schema?,
+        toolChoice: LLMParams.ToolChoice?,
+        user: String?,
+        additionalProperties: Map<String, JsonElement>?,
+    ): FirebaseLLMParams = FirebaseLLMParams(
+        temperature = temperature,
+        maxTokens = maxTokens,
+        numberOfChoices = numberOfChoices,
+        speculation = speculation,
+        schema = schema,
+        toolChoice = toolChoice,
+        user = user,
+        additionalProperties = additionalProperties,
+        thinkingConfig = thinkingConfig,
+        builtInTools = builtInTools,
+        retrievalConfig = retrievalConfig,
+    )
 }
