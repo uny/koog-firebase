@@ -98,8 +98,7 @@ private fun ExecutableCodePart.renderExecutableCode(): String {
 /**
  * Renders a code-execution result as text: the raw output, prefixed with a marker when the
  * execution did not succeed so a failure is not mistaken for a run that printed nothing. Returns
- * `null` for a successful run with no output — an empty text part would only be replayed to the
- * model as an empty [TextPart], which Gemini rejects.
+ * `null` for a successful run with no output rather than emitting an empty text part.
  */
 private fun CodeExecutionResultPart.renderCodeExecutionResult(): String? = buildString {
     if (outcome != CodeExecutionOutcome.OK) append("[code execution ${outcome.name}]")

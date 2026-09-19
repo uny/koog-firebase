@@ -29,9 +29,12 @@ import kotlinx.serialization.json.JsonElement
  *
  * @property thinkingConfig Gemini thinking configuration, or `null` to keep the model default.
  * @property builtInTools Server-side tools executed by Gemini itself (no Koog tool round-trip):
- *   [Tool.googleSearch], [Tool.urlContext], [Tool.codeExecution], [Tool.googleMaps]. These are
- *   sent alongside any Koog function tools. [Tool.FunctionDeclarations] is not allowed here —
- *   declare Koog tools through the agent's tool registry instead.
+ *   [Tool.googleSearch], [Tool.urlContext], [Tool.codeExecution], [Tool.googleMaps].
+ *   [Tool.FunctionDeclarations] is not allowed here — declare Koog tools through the agent's
+ *   tool registry instead. Note that Gemini currently rejects a request that mixes built-in
+ *   tools with function declarations (it requires `include_server_side_tool_invocations`, which
+ *   the Firebase AI Logic SDK does not expose yet), so use built-in tools on prompts without
+ *   Koog tools.
  * @property retrievalConfig Optional configuration for Google Maps grounding (e.g. the user's
  *   location). Only sent when [Tool.googleMaps] is in [builtInTools].
  */

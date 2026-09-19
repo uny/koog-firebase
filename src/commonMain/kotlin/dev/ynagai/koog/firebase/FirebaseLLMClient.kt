@@ -99,7 +99,8 @@ class FirebaseLLMClient(
             var lastMetaInfo: ResponseMetaInfo? = null
             var lastFinishReason: String? = null
             // Built-in-tool metadata is per candidate, not per delta: the last non-null value seen
-            // wins and is attached to the End frame.
+            // wins and is attached to the End frame (observed: Gemini sends it once, on the final
+            // chunk).
             var lastGroundingMetadata: GroundingMetadata? = null
             var lastUrlContextMetadata: UrlContextMetadata? = null
 

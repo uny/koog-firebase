@@ -118,9 +118,14 @@ val searchSuggestionsHtml = grounding?.get("searchEntryPoint")?.jsonObject
     ?.get("renderedContent")?.jsonPrimitive?.content
 ```
 
-Built-in tools can be combined with regular Koog tools; `toolChoice` only affects the Koog
-function tools. When streaming, the same metadata is attached to the final `StreamFrame.End`
-frame's `metaInfo`.
+When streaming, the same metadata is attached to the final `StreamFrame.End` frame's
+`metaInfo`. `toolChoice` only affects Koog function tools; it is ignored for built-in tools.
+
+> **Limitation:** Gemini currently rejects a request that declares built-in tools **and**
+> function declarations unless `tool_config.include_server_side_tool_invocations` is set, and the
+> Firebase AI Logic SDK does not expose that flag yet. Use built-in tools on prompts that carry no
+> Koog tools (e.g. a plain `PromptExecutor.execute` call), not inside an agent run with a
+> non-empty tool registry — such a request fails with Firebase's error message.
 
 > **Note:** When using Google Search grounding, Google's terms require your app to display the
 > Search Suggestions from `searchEntryPoint.renderedContent`. See the
