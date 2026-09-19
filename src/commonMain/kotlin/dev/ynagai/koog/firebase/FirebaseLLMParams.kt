@@ -32,8 +32,8 @@ import kotlinx.serialization.json.JsonElement
  *   [Tool.googleSearch], [Tool.urlContext], [Tool.codeExecution], [Tool.googleMaps]. These are
  *   sent alongside any Koog function tools. [Tool.FunctionDeclarations] is not allowed here —
  *   declare Koog tools through the agent's tool registry instead.
- * @property retrievalConfig Optional configuration for retrieval tools such as Google Maps
- *   grounding (e.g. the user's location).
+ * @property retrievalConfig Optional configuration for Google Maps grounding (e.g. the user's
+ *   location). Only sent when [Tool.googleMaps] is in [builtInTools].
  */
 class FirebaseLLMParams(
     temperature: Double? = null,
