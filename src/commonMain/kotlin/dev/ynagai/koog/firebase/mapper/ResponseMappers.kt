@@ -83,6 +83,11 @@ private fun textOrReasoning(text: String, isThought: Boolean): MessagePart.Respo
 private fun textOrReasoningDelta(text: String, isThought: Boolean): StreamFrame =
     if (isThought) StreamFrame.ReasoningDelta(text = text) else StreamFrame.TextDelta(text)
 
-/** Renders server-executed code as a Markdown fenced block tagged with its language. */
-private fun ExecutableCodePart.renderExecutableCode(): String =
-    "```${language.lowercase()}\n$code\n```"
+/**
+ * Renders server-executed code as a Markdown fenced block tagged with its language. Gemini reports
+ * `LANGUAGE_UNSPECIFIED` when it has none, which is rendered as an untagged fence.
+ */
+private fun ExecutableCodePart.renderExecutableCode(): String {
+    val tag = language.takeUnless { it.equals("LANGUAGE_UNSPECIFIED", ignoreCase = true) }?.lowercase().orEmpty()
+    return "```$tag\n$code\n```"
+}

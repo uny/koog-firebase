@@ -18,8 +18,8 @@ import kotlinx.serialization.json.putJsonObject
  * into the [JsonObject] carried by Koog's `ResponseMetaInfo.metadata`. Returns `null` when the
  * candidate has neither so callers can keep the default empty metadata.
  *
- * The Firebase SDK types are not `@Serializable`, so the JSON is built by hand mirroring the
- * Gemini REST field names.
+ * The Firebase SDK types are not `@Serializable`, so the JSON is built by hand. Field names mirror
+ * the Gemini REST API; enum values use the SDK's short names (e.g. `SUCCESS`).
  */
 internal fun Candidate.toolMetadataJson(): JsonObject? =
     toolMetadataJson(groundingMetadata, urlContextMetadata)

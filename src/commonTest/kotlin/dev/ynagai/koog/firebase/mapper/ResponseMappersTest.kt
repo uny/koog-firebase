@@ -248,6 +248,14 @@ class ResponseMappersTest {
     }
 
     @Test
+    fun rendersUnspecifiedLanguageAsUntaggedFence() {
+        val frame = assertIs<StreamFrame.TextDelta>(
+            ExecutableCodePart(language = "LANGUAGE_UNSPECIFIED", code = "x").toStreamFrame(),
+        )
+        assertEquals("```\nx\n```", frame.text)
+    }
+
+    @Test
     fun streamsCodeExecutionPartsAsTextDeltas() {
         val code = assertIs<StreamFrame.TextDelta>(ExecutableCodePart(language = "PYTHON", code = "print(1)").toStreamFrame())
         assertEquals("```python\nprint(1)\n```", code.text)
