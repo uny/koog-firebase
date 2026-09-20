@@ -38,6 +38,3 @@ jobs:
 
       - name: Check SwiftPM lock is unchanged
         run: git diff --exit-code -- .swiftpm-locks
-
-      - name: Check SwiftPM lock is unchanged
-        run: git diff --exit-code -- .swiftpm-locks
