@@ -5,10 +5,15 @@ import ai.koog.agents.core.tools.ToolParameterDescriptor
 import ai.koog.agents.core.tools.ToolParameterType
 import ai.koog.prompt.params.LLMParams
 import dev.ynagai.firebase.ai.FunctionCallingMode
+import dev.ynagai.firebase.ai.LatLng
+import dev.ynagai.firebase.ai.RetrievalConfig
 import dev.ynagai.firebase.ai.SchemaType
+import dev.ynagai.firebase.ai.ThinkingConfig
 import dev.ynagai.firebase.ai.Tool
+import dev.ynagai.koog.firebase.FirebaseLLMParams
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -197,5 +202,105 @@ class ToolMappersTest {
         ).toFirebaseTools()
 
         assertNull(resolveToolConfig(tools, null))
+    }
+
+    @Test
+    fun resolveToolsIsNullWithoutFunctionOrBuiltInTools() {
+        assertNull(resolveTools(emptyList(), LLMParams()))
+        assertNull(resolveTools(emptyList(), FirebaseLLMParams()))
+    }
+
+    @Test
+    fun resolveToolsAppendsBuiltInToolsAfterFunctionDeclarations() {
+        val params = FirebaseLLMParams(builtInTools = listOf(Tool.googleSearch(), Tool.urlContext()))
+        val descriptors = listOf(ToolDescriptor("get_weather", "Get the weather"))
+
+        val tools = resolveTools(descriptors, params)
+
+        assertEquals(3, tools?.size)
+        assertTrue(tools?.get(0) is Tool.FunctionDeclarations)
+        assertEquals(Tool.GoogleSearch, tools?.get(1))
+        assertEquals(Tool.UrlContext, tools?.get(2))
+    }
+
+    @Test
+    fun resolveToolsPassesBuiltInToolsWithoutFunctionDeclarations() {
+        val params = FirebaseLLMParams(builtInTools = listOf(Tool.googleSearch()))
+
+        assertEquals(listOf(Tool.GoogleSearch), resolveTools(emptyList(), params))
+    }
+
+    @Test
+    fun plainLLMParamsCarryNoBuiltInTools() {
+        val tools = resolveTools(listOf(ToolDescriptor("get_weather", "Get the weather")), LLMParams())
+
+        assertEquals(1, tools?.size)
+        assertTrue(tools?.single() is Tool.FunctionDeclarations)
+    }
+
+    @Test
+    fun builtInToolsRejectFunctionDeclarations() {
+        assertFailsWith<IllegalArgumentException> {
+            FirebaseLLMParams(builtInTools = listOf(Tool.functionDeclarations(emptyList())))
+        }
+    }
+
+    @Test
+    fun resolveToolConfigIgnoresChoiceWhenOnlyBuiltInToolsArePresent() {
+        assertNull(resolveToolConfig(listOf(Tool.googleSearch()), LLMParams.ToolChoice.Required))
+    }
+
+    @Test
+    fun resolveToolConfigMapsChoiceWhenFunctionsAreMixedWithBuiltInTools() {
+        val tools = listOf(ToolDescriptor("get_weather", "Get the weather")).toFirebaseTools() + Tool.googleSearch()
+
+        val config = resolveToolConfig(tools, LLMParams.ToolChoice.Required)
+
+        assertEquals(FunctionCallingMode.ANY, config?.functionCallingConfig?.mode)
+        assertNull(config?.retrievalConfig)
+    }
+
+    @Test
+    fun resolveToolConfigPassesRetrievalConfigWithoutFunctionCallingConfig() {
+        val retrievalConfig = RetrievalConfig(latLng = LatLng(35.68, 139.76), languageCode = "ja")
+
+        val config = resolveToolConfig(listOf(Tool.googleMaps()), LLMParams.ToolChoice.Required, retrievalConfig)
+
+        assertNull(config?.functionCallingConfig)
+        assertEquals(retrievalConfig, config?.retrievalConfig)
+    }
+
+    @Test
+    fun resolveToolConfigDropsRetrievalConfigWithoutGoogleMaps() {
+        val retrievalConfig = RetrievalConfig(latLng = LatLng(35.68, 139.76))
+
+        assertNull(resolveToolConfig(null, null, retrievalConfig))
+        assertNull(resolveToolConfig(listOf(Tool.googleSearch()), null, retrievalConfig))
+        val withFunctions = resolveToolConfig(
+            listOf(ToolDescriptor("get_weather", "Get the weather")).toFirebaseTools(),
+            LLMParams.ToolChoice.Auto,
+            retrievalConfig,
+        )
+        assertEquals(FunctionCallingMode.AUTO, withFunctions?.functionCallingConfig?.mode)
+        assertNull(withFunctions?.retrievalConfig)
+    }
+
+    @Test
+    fun copyPreservesFirebaseSpecificParams() {
+        val params = FirebaseLLMParams(
+            temperature = 0.2,
+            thinkingConfig = ThinkingConfig(thinkingBudget = 128),
+            builtInTools = listOf(Tool.googleSearch()),
+            retrievalConfig = RetrievalConfig(languageCode = "ja"),
+        )
+
+        val copied = params.copy(toolChoice = LLMParams.ToolChoice.Required)
+
+        assertEquals(0.2, copied.temperature)
+        assertEquals(LLMParams.ToolChoice.Required, copied.toolChoice)
+        assertEquals(params.thinkingConfig, copied.thinkingConfig)
+        assertEquals(params.builtInTools, copied.builtInTools)
+        assertEquals(params.retrievalConfig, copied.retrievalConfig)
+        assertEquals(listOf(Tool.GoogleSearch), resolveTools(emptyList(), copied))
     }
 }

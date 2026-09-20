@@ -14,13 +14,16 @@ import ai.koog.utils.time.KoogClock
 import dev.ynagai.firebase.ai.FirebaseAI
 import dev.ynagai.firebase.ai.GenerationConfig
 import dev.ynagai.firebase.ai.GenerativeModel
+import dev.ynagai.firebase.ai.GroundingMetadata
+import dev.ynagai.firebase.ai.UrlContextMetadata
 import dev.ynagai.koog.firebase.mapper.extractSystemInstruction
-import dev.ynagai.koog.firebase.mapper.toFirebase
-import dev.ynagai.koog.firebase.mapper.toFirebaseTools
 import dev.ynagai.koog.firebase.mapper.resolveToolConfig
+import dev.ynagai.koog.firebase.mapper.resolveTools
+import dev.ynagai.koog.firebase.mapper.toFirebase
 import dev.ynagai.koog.firebase.mapper.toGenerationConfig
 import dev.ynagai.koog.firebase.mapper.toKoog
 import dev.ynagai.koog.firebase.mapper.toStreamFrame
+import dev.ynagai.koog.firebase.mapper.toolMetadataJson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -95,6 +98,11 @@ class FirebaseLLMClient(
 
             var lastMetaInfo: ResponseMetaInfo? = null
             var lastFinishReason: String? = null
+            // Built-in-tool metadata is per candidate, not per delta: the last non-null value seen
+            // wins and is attached to the End frame (observed: Gemini sends it once, on the final
+            // chunk).
+            var lastGroundingMetadata: GroundingMetadata? = null
+            var lastUrlContextMetadata: UrlContextMetadata? = null
 
             generativeModel.generateContentStream(*contents.toTypedArray())
                 .collect { response ->
@@ -108,13 +116,17 @@ class FirebaseLLMClient(
                     }
                     response.candidates.firstOrNull()?.let { candidate ->
                         candidate.finishReason?.let { lastFinishReason = it.name }
+                        candidate.groundingMetadata?.let { lastGroundingMetadata = it }
+                        candidate.urlContextMetadata?.let { lastUrlContextMetadata = it }
                         candidate.content.parts.forEach { part ->
                             part.toStreamFrame()?.let { emit(it) }
                         }
                     }
                 }
 
-            emit(StreamFrame.End(lastFinishReason, lastMetaInfo ?: ResponseMetaInfo.create(clock)))
+            val metaInfo = (lastMetaInfo ?: ResponseMetaInfo.create(clock))
+                .copy(metadata = toolMetadataJson(lastGroundingMetadata, lastUrlContextMetadata))
+            emit(StreamFrame.End(lastFinishReason, metaInfo))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -143,8 +155,12 @@ class FirebaseLLMClient(
     ): GenerativeModel {
         val systemInstruction = prompt.messages.extractSystemInstruction()
         val generationConfig: GenerationConfig? = prompt.params.toGenerationConfig()
-        val firebaseTools = tools.toFirebaseTools().ifEmpty { null }
-        val toolConfig = resolveToolConfig(firebaseTools, prompt.params.toolChoice)
+        val firebaseTools = resolveTools(tools, prompt.params)
+        val toolConfig = resolveToolConfig(
+            tools = firebaseTools,
+            toolChoice = prompt.params.toolChoice,
+            retrievalConfig = (prompt.params as? FirebaseLLMParams)?.retrievalConfig,
+        )
         return firebaseAI.generativeModel(
             modelName = model.id,
             generationConfig = generationConfig,
