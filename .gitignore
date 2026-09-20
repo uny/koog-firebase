@@ -23,7 +23,9 @@ Thumbs.db
 .build/
 DerivedData/
 StartYourBridgeHere.swift
-.swiftpm-locks/
+# .swiftpm-locks/ is committed on purpose: it is the Kotlin Gradle plugin's SwiftPM lock
+# (Package.resolved) and pins the transitive firebase-ios-sdk version so CI resolves the same
+# graph as local builds. Its own .gitignore excludes the checkout.
 
 # --- Local working docs (not for publishing) ---
 docs/local/
