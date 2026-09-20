@@ -60,8 +60,7 @@ class UrlContextTool(
             ?.map { it.jsonObject["urlRetrievalStatus"]?.jsonPrimitive?.content ?: "UNSPECIFIED" }
             .orEmpty()
         val failures = statuses.filter { it != "SUCCESS" }.distinct().joinToString()
-        // No urlContextMetadata means Gemini never attempted a fetch (e.g. the URL has no scheme), so
-        // the text is the model's own knowledge, not the page — say so rather than pass it off as content.
+        // No urlContextMetadata: Gemini never fetched, so the text is not page content.
         return when {
             statuses.isEmpty() ->
                 "Could not retrieve ${args.url}: no fetch was attempted (use an absolute http(s) URL). ${result.text}"
