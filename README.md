@@ -125,7 +125,33 @@ When streaming, the same metadata is attached to the final `StreamFrame.End` fra
 > function declarations unless `tool_config.include_server_side_tool_invocations` is set, and the
 > Firebase AI Logic SDK does not expose that flag yet. Use built-in tools on prompts that carry no
 > Koog tools (e.g. a plain `PromptExecutor.execute` call), not inside an agent run with a
-> non-empty tool registry — such a request fails with Firebase's error message.
+> non-empty tool registry — such a request fails with Firebase's error message. For agents, use
+> the wrapper tools below instead.
+
+#### Google Search / URL context as Koog tools
+
+`GoogleSearchTool` and `UrlContextTool` wrap the built-in tools as ordinary Koog function tools,
+so an agent with its own tools can still search the web or read a page. Each call makes a
+separate, tool-free grounded request through the executor and returns the answer (plus web
+sources for search) as text:
+
+```kotlin
+import dev.ynagai.koog.firebase.tools.GoogleSearchTool
+import dev.ynagai.koog.firebase.tools.UrlContextTool
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+val toolRegistry = ToolRegistry {
+    tool(GoogleSearchTool(executor, FirebaseModels.Gemini3_7Flash, onGroundingMetadata = { grounding ->
+        // Google's terms require showing the Search Suggestions when Search grounding is used.
+        // The callback runs on the tool's coroutine, not the main thread.
+        val html = grounding["searchEntryPoint"]?.jsonObject?.get("renderedContent")?.jsonPrimitive?.content
+        html?.let { showSearchSuggestions(it) }
+    }))
+    tool(UrlContextTool(executor, FirebaseModels.Gemini3_7Flash))
+    tool(MyOwnTool())
+}
+```
 
 > **Note:** When using Google Search grounding, Google's terms require your app to display the
 > Search Suggestions from `searchEntryPoint.renderedContent`. See the
