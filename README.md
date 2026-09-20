@@ -98,7 +98,7 @@ val executor = simpleFirebaseExecutor(
 
 - Kotlin 2.1+
 - Firebase project with AI enabled
-- Android API 24+ / iOS 13+
+- Android API 24+ / iOS 15+ (firebase-ios-sdk 12.x floor)
 
 ## License
 
