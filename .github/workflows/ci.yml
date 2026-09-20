@@ -35,3 +35,6 @@ jobs:
 
       - name: Build and Check
         run: ./gradlew assemble check --build-cache
+
+      - name: Check SwiftPM lock is unchanged
+        run: git diff --exit-code -- .swiftpm-locks
