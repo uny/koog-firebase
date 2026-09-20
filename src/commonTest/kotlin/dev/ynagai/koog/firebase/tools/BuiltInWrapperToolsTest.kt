@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -29,7 +31,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Records the prompt it receives and replies with a canned assistant message. */
-private class FakeExecutor(private val reply: String, private val metadata: JsonObject? = null) : PromptExecutor() {
+private class FakeExecutor(
+    private val reply: String,
+    private val metadata: JsonObject? = null,
+    private val finishReason: String? = null,
+) : PromptExecutor() {
     var lastPrompt: Prompt? = null
     var lastTools: List<ToolDescriptor>? = null
 
@@ -39,6 +45,7 @@ private class FakeExecutor(private val reply: String, private val metadata: Json
         return Message.Assistant(
             parts = listOf(MessagePart.Text(reply)),
             metaInfo = ResponseMetaInfo.create(KoogClock.System, metadata = metadata),
+            finishReason = finishReason,
         )
     }
 
@@ -52,11 +59,16 @@ private class FakeExecutor(private val reply: String, private val metadata: Json
 private fun Prompt.userText(): String =
     messages.filterIsInstance<Message.User>().single().parts.filterIsInstance<MessagePart.Text>().joinToString("") { it.text }
 
+private fun Prompt.systemText(): String? =
+    messages.filterIsInstance<Message.System>().singleOrNull()?.parts?.filterIsInstance<MessagePart.Text>()?.joinToString("") { it.text }
+
 private fun groundingMetadata(vararg sources: Pair<String, String?>): JsonObject = buildJsonObject {
     putJsonObject(FirebaseMetadataKeys.GROUNDING_METADATA) {
         putJsonArray("webSearchQueries") { }
         putJsonObject("searchEntryPoint") { put("renderedContent", "<div/>") }
         putJsonArray("groundingChunks") {
+            // A maps-only chunk, as GroundingMappers emits for Google Maps grounding: must be skipped.
+            add(buildJsonObject { putJsonObject("maps") { put("uri", "https://maps.example"); put("title", "Place") } })
             sources.forEach { (uri, title) ->
                 add(buildJsonObject { putJsonObject("web") { put("uri", uri); title?.let { put("title", it) } } })
             }
@@ -88,8 +100,37 @@ class BuiltInWrapperToolsTest {
         val params = assertIs<FirebaseLLMParams>(executor.lastPrompt!!.params)
         assertEquals(listOf(Tool.GoogleSearch), params.builtInTools)
         assertEquals("weather in Tokyo", executor.lastPrompt!!.userText())
-        assertTrue(executor.lastPrompt!!.messages.any { it is Message.System })
-        assertEquals("<div/>", seen?.get("searchEntryPoint")?.let { (it as JsonObject)["renderedContent"].toString().trim('"') })
+        assertEquals("google_search", executor.lastPrompt!!.id)
+        assertEquals(GoogleSearchTool.DEFAULT_SYSTEM_PROMPT, executor.lastPrompt!!.systemText())
+        assertEquals("<div/>", seen?.get("searchEntryPoint")?.jsonObject?.get("renderedContent")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun googleSearchUsesCustomNameAndSystemPromptAndSkipsEmptySources() = runTest {
+        val executor = FakeExecutor("Answer.", groundingMetadata())
+        val tool = GoogleSearchTool(executor, model, name = "news_search", systemPrompt = "Be brief.")
+
+        assertEquals("Answer.", tool.execute(GoogleSearchTool.Args("q")))
+        assertEquals("news_search", executor.lastPrompt!!.id)
+        assertEquals("Be brief.", executor.lastPrompt!!.systemText())
+    }
+
+    @Test
+    fun blankSystemPromptSendsNoSystemMessage() = runTest {
+        val executor = FakeExecutor("Answer.")
+        GoogleSearchTool(executor, model, systemPrompt = " ").execute(GoogleSearchTool.Args("q"))
+
+        assertNull(executor.lastPrompt!!.systemText())
+    }
+
+    @Test
+    fun emptyAnswerReportsFinishReason() = runTest {
+        val executor = FakeExecutor("", finishReason = "SAFETY")
+
+        assertEquals(
+            "The model returned no answer (finish reason: SAFETY).",
+            GoogleSearchTool(executor, model).execute(GoogleSearchTool.Args("q")),
+        )
     }
 
     @Test
@@ -118,17 +159,44 @@ class BuiltInWrapperToolsTest {
             "URL: https://example.com\n\nWhat is it about?",
             executor.lastPrompt!!.userText(),
         )
+        assertEquals("fetch_url", executor.lastPrompt!!.id)
+        assertEquals(UrlContextTool.DEFAULT_SYSTEM_PROMPT, executor.lastPrompt!!.systemText())
+    }
+
+    @Test
+    fun urlContextWithoutMetadataReportsNoFetchAttempted() = runTest {
+        val executor = FakeExecutor("From memory.")
+        val tool = UrlContextTool(executor, model, name = "read_page")
+
+        val result = tool.execute(UrlContextTool.Args("example.com", "  "))
+
+        assertEquals(
+            "Could not retrieve example.com: no fetch was attempted (use an absolute http(s) URL). From memory.",
+            result,
+        )
+        assertTrue(executor.lastPrompt!!.userText().endsWith("Summarize the page concisely."))
+        assertEquals("read_page", executor.lastPrompt!!.id)
+    }
+
+    @Test
+    fun urlContextWithMixedStatusesKeepsAnswerAndNotesFailures() = runTest {
+        val executor = FakeExecutor("Compared.", urlContextMetadata("SUCCESS", "PAYWALL", "PAYWALL"))
+
+        assertEquals(
+            "Note: some referenced URLs could not be retrieved (status: PAYWALL). Compared.",
+            UrlContextTool(executor, model).execute(UrlContextTool.Args("https://example.com", "Compare")),
+        )
     }
 
     @Test
     fun urlContextDefaultsToSummaryAndReportsRetrievalFailure() = runTest {
-        val executor = FakeExecutor("I could not access the page.", urlContextMetadata("PAYWALL"))
+        val executor = FakeExecutor("I could not access the page.", urlContextMetadata("PAYWALL", "ERROR"))
         val tool = UrlContextTool(executor, model)
 
         val result = tool.execute(UrlContextTool.Args("https://example.com"))
 
         assertTrue(executor.lastPrompt!!.userText().endsWith("Summarize the page concisely."))
-        assertEquals("Could not retrieve https://example.com (status: PAYWALL). I could not access the page.", result)
+        assertEquals("Could not retrieve https://example.com (status: PAYWALL, ERROR). I could not access the page.", result)
     }
 
     @Test

@@ -138,11 +138,15 @@ sources for search) as text:
 ```kotlin
 import dev.ynagai.koog.firebase.tools.GoogleSearchTool
 import dev.ynagai.koog.firebase.tools.UrlContextTool
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 val toolRegistry = ToolRegistry {
     tool(GoogleSearchTool(executor, FirebaseModels.Gemini3_7Flash, onGroundingMetadata = { grounding ->
         // Google's terms require showing the Search Suggestions when Search grounding is used.
-        showSearchSuggestions(grounding["searchEntryPoint"]?.jsonObject?.get("renderedContent"))
+        // The callback runs on the tool's coroutine, not the main thread.
+        val html = grounding["searchEntryPoint"]?.jsonObject?.get("renderedContent")?.jsonPrimitive?.content
+        html?.let { showSearchSuggestions(it) }
     }))
     tool(UrlContextTool(executor, FirebaseModels.Gemini3_7Flash))
     tool(MyOwnTool())

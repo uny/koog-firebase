@@ -6,6 +6,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.serialization.typeToken
 import dev.ynagai.firebase.ai.Tool
+import dev.ynagai.koog.firebase.FirebaseLLMParams
 import dev.ynagai.koog.firebase.FirebaseMetadataKeys
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonArray
@@ -19,13 +20,16 @@ import kotlinx.serialization.json.jsonPrimitive
  * Like [GoogleSearchTool], it exists because Firebase AI Logic cannot combine
  * `Tool.urlContext()` with function declarations in one request: the page is fetched and read
  * by a separate, tool-free request through [executor], and the model's answer to [Args.question]
- * about the page is returned as text. A page Gemini could not retrieve (paywall, unsafe, error)
- * yields an explanatory message rather than an exception so the agent can recover.
+ * about the page is returned as text. A page Gemini could not retrieve (paywall, unsafe, error),
+ * or did not attempt to retrieve at all (e.g. a URL without a scheme), yields an explanatory
+ * message rather than an exception so the agent can recover.
  *
- * @param executor Executor used for the URL-context request (typically the agent's own).
+ * @param executor Executor used for the URL-context request (typically the agent's own). It must
+ *   be backed by this library's Firebase client; any other executor ignores
+ *   [FirebaseLLMParams.builtInTools] and the tool would answer without reading the page.
  * @param model Model used for the URL-context request.
- * @param name Tool name exposed to the agent's model.
- * @param systemPrompt Instruction for the URL-context request.
+ * @param name Tool name exposed to the agent's model; also used as the URL-context prompt's id.
+ * @param systemPrompt Instruction for the URL-context request; blank sends no system instruction.
  */
 class UrlContextTool(
     executor: PromptExecutor,
@@ -50,16 +54,20 @@ class UrlContextTool(
 
     override suspend fun execute(args: Args): String {
         val task = args.question?.takeIf { it.isNotBlank() } ?: "Summarize the page concisely."
-        val result = runner.run(id = "fetch_url", systemPrompt = systemPrompt, userPrompt = "URL: ${args.url}\n\n$task")
+        val result = runner.run(id = name, systemPrompt = systemPrompt, userPrompt = "URL: ${args.url}\n\n$task")
         val statuses = result.metadata?.get(FirebaseMetadataKeys.URL_CONTEXT_METADATA)?.jsonObject
             ?.get("urlMetadata")?.jsonArray
             ?.map { it.jsonObject["urlRetrievalStatus"]?.jsonPrimitive?.content ?: "UNSPECIFIED" }
             .orEmpty()
-        val failed = statuses.isNotEmpty() && statuses.none { it == "SUCCESS" }
-        return if (failed) {
-            "Could not retrieve ${args.url} (status: ${statuses.distinct().joinToString()}). ${result.text}".trim()
-        } else {
-            result.text
+        val failures = statuses.filter { it != "SUCCESS" }.distinct().joinToString()
+        // No urlContextMetadata means Gemini never attempted a fetch (e.g. the URL has no scheme), so
+        // the text is the model's own knowledge, not the page — say so rather than pass it off as content.
+        return when {
+            statuses.isEmpty() ->
+                "Could not retrieve ${args.url}: no fetch was attempted (use an absolute http(s) URL). ${result.text}"
+            statuses.none { it == "SUCCESS" } -> "Could not retrieve ${args.url} (status: $failures). ${result.text}"
+            failures.isNotEmpty() -> "Note: some referenced URLs could not be retrieved (status: $failures). ${result.text}"
+            else -> result.text
         }
     }
 

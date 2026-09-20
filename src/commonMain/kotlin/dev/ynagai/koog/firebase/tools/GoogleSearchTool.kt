@@ -6,6 +6,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.serialization.typeToken
 import dev.ynagai.firebase.ai.Tool
+import dev.ynagai.koog.firebase.FirebaseLLMParams
 import dev.ynagai.koog.firebase.FirebaseMetadataKeys
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -28,16 +29,24 @@ import kotlinx.serialization.json.jsonObject
  *
  * ```kotlin
  * val toolRegistry = ToolRegistry {
- *     tool(GoogleSearchTool(executor, FirebaseModels.Gemini3_7Flash))
+ *     tool(GoogleSearchTool(executor, FirebaseModels.Gemini3_7Flash, onGroundingMetadata = { grounding ->
+ *         val html = grounding["searchEntryPoint"]?.jsonObject?.get("renderedContent")?.jsonPrimitive?.content
+ *         // hand `html` to the UI on the main thread
+ *     }))
  *     tool(MyOwnTool())
  * }
  * ```
  *
- * @param executor Executor used for the grounded request (typically the agent's own).
+ * @param executor Executor used for the grounded request (typically the agent's own). It must be
+ *   backed by this library's Firebase client; any other executor ignores [FirebaseLLMParams.builtInTools]
+ *   and the tool would return an ungrounded answer.
  * @param model Model used for the grounded request.
- * @param name Tool name exposed to the agent's model.
- * @param systemPrompt Instruction for the grounded request.
+ * @param name Tool name exposed to the agent's model; also used as the grounded prompt's id.
+ * @param systemPrompt Instruction for the grounded request; blank sends no system instruction.
  * @param onGroundingMetadata Receives the `groundingMetadata` object of each call that returned one.
+ *   It is invoked on the coroutine that executes the tool (not the main thread, and possibly
+ *   concurrently when the agent runs tool calls in parallel), and an exception thrown from it fails
+ *   the tool call — dispatch UI work to the main thread instead of doing it inline.
  */
 class GoogleSearchTool(
     executor: PromptExecutor,
@@ -60,7 +69,7 @@ class GoogleSearchTool(
     private val runner = BuiltInToolRunner(executor, model, listOf(Tool.googleSearch()))
 
     override suspend fun execute(args: Args): String {
-        val result = runner.run(id = "google_search", systemPrompt = systemPrompt, userPrompt = args.query)
+        val result = runner.run(id = name, systemPrompt = systemPrompt, userPrompt = args.query)
         result.metadata?.get(FirebaseMetadataKeys.GROUNDING_METADATA)?.jsonObject?.let { onGroundingMetadata?.invoke(it) }
         val sources = result.metadata.groundingSourcesMarkdown()
         return if (sources == null) result.text else "${result.text}\n\nSources:\n$sources"

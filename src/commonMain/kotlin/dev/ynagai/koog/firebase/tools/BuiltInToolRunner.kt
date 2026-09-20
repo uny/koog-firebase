@@ -26,13 +26,20 @@ internal class BuiltInToolRunner(
 ) {
     class Result(val text: String, val metadata: JsonObject?)
 
+    /**
+     * Sends [userPrompt] (with [systemPrompt] as the system instruction unless blank) and returns
+     * the response text. A response without any text (e.g. finish reason `SAFETY` or
+     * `MAX_TOKENS` before the first token) yields a short explanatory text instead of an empty
+     * string, so the agent can tell "no answer" from an empty answer.
+     */
     suspend fun run(id: String, systemPrompt: String?, userPrompt: String): Result {
         val prompt = prompt(id, params = FirebaseLLMParams(builtInTools = builtInTools)) {
-            systemPrompt?.let { system(it) }
+            systemPrompt?.takeIf { it.isNotBlank() }?.let { system(it) }
             user(userPrompt)
         }
         val response: Message.Assistant = executor.execute(prompt, model, emptyList())
         val text = response.parts.filterIsInstance<MessagePart.Text>().joinToString("") { it.text }
+            .ifBlank { "The model returned no answer (finish reason: ${response.finishReason ?: "unknown"})." }
         return Result(text, response.metaInfo.metadata)
     }
 }
