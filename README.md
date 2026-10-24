@@ -8,7 +8,7 @@ Firebase Vertex AI integration for the [Koog Agent Framework](https://github.com
 
 ## Features
 
-- Kotlin Multiplatform support (Android, iOS)
+- Kotlin Multiplatform support (Android, iOS; JVM for desktop previews and tests only — Firebase calls fail there because firebase-kotlin-sdk's JVM target is a fake)
 - Firebase AI (Google AI / Vertex AI) backend integration
 - Seamless integration with Koog agents
 - Pre-configured Gemini model definitions

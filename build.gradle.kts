@@ -20,6 +20,13 @@ kotlin {
     }
     iosArm64()
     iosSimulatorArm64()
+    // firebase-kotlin-sdk's JVM target is a fake (no Firebase client exists for JVM); this target
+    // lets apps that depend on koog-firebase add jvm() for desktop previews and JVM tests.
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_21)
+        }
+    }
     withSourcesJar(publish = true)
     sourceSets {
         commonMain.dependencies {
